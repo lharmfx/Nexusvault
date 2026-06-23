@@ -1,0 +1,2339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NexusVault — AI Crypto Investment Platform</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+</head>
+<body style="margin:0;padding:0;background:#04040E">
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
+const T = {
+  bg:     "#04040E",
+  bg2:    "#080816",
+  bg3:    "#0C0C20",
+  card:   "rgba(255,255,255,0.038)",
+  glass:  "rgba(255,255,255,0.055)",
+  border: "rgba(255,255,255,0.08)",
+  borderH:"rgba(255,255,255,0.16)",
+  gold:   "#F0A500",
+  goldL:  "#FFD04A",
+  blue:   "#4F9EFF",
+  green:  "#0FD98A",
+  red:    "#FF4D6A",
+  purple: "#A855F7",
+  cyan:   "#06B6D4",
+  t1:     "#ECEEFF",
+  t2:     "#7882A0",
+  t3:     "#32364A",
+};
+
+const COINS = [
+  { s:"BTC",  p:67834,  c: 2.34,  sym:"₿" },
+  { s:"ETH",  p:3542,   c:-1.12,  sym:"Ξ" },
+  { s:"USDT", p:1.00,   c: 0.01,  sym:"₮" },
+  { s:"BNB",  p:589,    c: 3.45,  sym:"B" },
+  { s:"SOL",  p:182,    c: 5.67,  sym:"◎" },
+  { s:"XRP",  p:0.624,  c:-0.89,  sym:"✕" },
+  { s:"ADA",  p:0.456,  c: 1.23,  sym:"A" },
+  { s:"DOGE", p:0.128,  c: 4.11,  sym:"Ð" },
+];
+
+const WALLETS = {
+  BTC:  "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+  ETH:  "0x742d35Cc6634C0532925a3b8D4C9C2F0E3B1234F",
+  USDT: "TKmN8YPx9zFBbXKNLqpwvJGMdBvOT5CKmR",
+  BNB:  "bnb136ns6lfw4zs5hg4n85vdthaad7hq5m4gtkgf23",
+};
+
+const PLANS = [
+  { id:1, name:"Starter",  roi:50,  min:500,    max:4999,   color:T.blue,   icon:"🚀", hot:false },
+  { id:2, name:"Growth",   roi:75,  min:5000,   max:24999,  color:T.gold,   icon:"⚡", hot:true  },
+  { id:3, name:"Elite",    roi:100, min:25000,  max:99999,  color:T.purple, icon:"💎", hot:false },
+  { id:4, name:"VIP Pro",  roi:150, min:100000, max:null,   color:T.red,    icon:"👑", hot:false },
+];
+
+const LANGS = [
+  { flag:"🇺🇸", code:"EN", name:"English"    },
+  { flag:"🇫🇷", code:"FR", name:"Français"   },
+  { flag:"🇪🇸", code:"ES", name:"Español"    },
+  { flag:"🇩🇪", code:"DE", name:"Deutsch"    },
+  { flag:"🇵🇹", code:"PT", name:"Português"  },
+  { flag:"🇨🇳", code:"ZH", name:"中文"       },
+  { flag:"🇦🇪", code:"AR", name:"العربية"    },
+  { flag:"🇷🇺", code:"RU", name:"Русский"    },
+  { flag:"🇯🇵", code:"JA", name:"日本語"     },
+  { flag:"🇮🇳", code:"HI", name:"हिन्दी"      },
+];
+
+const FAQS = [
+  { q:"How does NexusVault generate weekly returns?",
+    a:"Our proprietary AI engine analyzes 10,000+ market signals per second across spot, futures, and DeFi — capturing arbitrage, momentum, and yield opportunities 24/7 across every major exchange globally." },
+  { q:"What is the minimum investment amount?",
+    a:"The Starter plan begins at $500 with 50% weekly ROI. We accept BTC, ETH, USDT (TRC-20/ERC-20), and BNB (BSC). Deposits are confirmed on-chain automatically — no manual steps required." },
+  { q:"How quickly are withdrawals processed?",
+    a:"Withdrawal requests are reviewed within 24–48 hours. The minimum withdrawal is $100. There are no lock-in periods — withdraw at any time with zero penalties or fees beyond the 1.5% processing fee." },
+  { q:"Is my investment secure?",
+    a:"AES-256 encryption, 95% cold storage in multi-sig wallets, 24/7 AI threat monitoring, and quarterly independent security audits. All transactions are on-chain verifiable. SSL/TLS 1.3, PCI DSS Level 1, and ISO 27001 certified." },
+  { q:"How does the referral program work?",
+    a:"Earn 10% commission on every deposit made by your referrals. Commissions are credited to your dashboard balance instantly. There is no cap on referrals or total earnings." },
+  { q:"What email notifications do I receive?",
+    a:"Deposit confirmations, ROI payout alerts, withdrawal status updates, referral commission notifications, security alerts (new logins, 2FA changes), KYC status updates, and weekly account statements — all in your selected language." },
+  { q:"Is there multi-language support?",
+    a:"Yes — the platform supports 10 languages: English, French, Spanish, German, Portuguese, Chinese, Arabic, Russian, Japanese, and Hindi. Your preference applies to both the dashboard and all email notifications." },
+];
+
+const TESTIMONIALS = [
+  { init:"RC", name:"Robert Chen",    role:"Software Engineer, NYC",       profit:"+$45,200",  stars:5, color:"#F0A500",
+    text:"14 consecutive weekly ROI payouts without a single issue. The email notifications keep me updated in real-time. Most transparent crypto platform I've ever used." },
+  { init:"LO", name:"Linda Okonkwo",  role:"Business Owner, London",       profit:"+$128,900", stars:5, color:T.blue,
+    text:"My first $50K withdrawal was processed in under 6 hours. Live chat support answered within 20 seconds. Now on the Elite plan — returns have been phenomenal." },
+  { init:"MW", name:"Marcus Wei",     role:"Financial Analyst, Singapore",  profit:"+$89,750",  stars:5, color:T.purple,
+    text:"The WhatsApp support team is incredibly responsive. Every transaction is blockchain-verifiable. The SSL badges and security certifications gave me full confidence." },
+  { init:"SR", name:"Sofia Reyes",    role:"Entrepreneur, Barcelona",      profit:"+$34,600",  stars:5, color:T.green,
+    text:"Referral commissions plus ROI — fully passive income. The Telegram channel keeps me informed daily. Joined via a Spanish referral link — multi-language support is flawless." },
+];
+
+const EMAIL_TEMPLATES = [
+  { name:"Deposit Confirmed",        trigger:"On-chain confirmation received",  status:"Active" },
+  { name:"ROI Payout Credited",      trigger:"Every 7 days (cron job)",         status:"Active" },
+  { name:"Withdrawal Status Update", trigger:"3-stage: submitted → sent",       status:"Active" },
+  { name:"Referral Commission",      trigger:"On each referral deposit",         status:"Active" },
+  { name:"Security Alert",           trigger:"New device/location detected",    status:"Active" },
+  { name:"KYC Status Update",        trigger:"When KYC reviewed by admin",      status:"Active" },
+  { name:"Welcome Email",            trigger:"On account registration",          status:"Active" },
+  { name:"Weekly Statement",         trigger:"Every Monday morning digest",     status:"Active" },
+];
+
+// ─── GLOBAL STYLES (injected once) ────────────────────────────────────────────
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Outfit:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:#080816}::-webkit-scrollbar-thumb{background:#1a1a35;border-radius:2px}
+body{font-family:'Outfit',system-ui,sans-serif;background:#04040E;color:#ECEEFF;overflow-x:hidden}
+h1,h2,h3,h4,h5{font-family:'Cabinet Grotesk',system-ui,sans-serif}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes orbFloat1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(60px,-45px) scale(1.08)}66%{transform:translate(-40px,55px) scale(.93)}}
+@keyframes orbFloat2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-70px,35px) scale(.92)}66%{transform:translate(50px,-60px) scale(1.1)}}
+.fade-in{animation:fadeUp .7s ease both}
+.fade-in-delay{animation:fadeUp .7s ease .2s both}
+.fade-in-delay2{animation:fadeUp .7s ease .4s both}
+`;
+
+// ─── SHARED COMPONENTS ─────────────────────────────────────────────────────────
+const s = (styles) => Object.entries(styles).map(([k,v])=>`${k.replace(/([A-Z])/g,'-$1').toLowerCase()}:${v}`).join(';');
+
+const Btn = ({ children, variant="gold", size="md", onClick, style={} }) => {
+  const [hov, setHov] = useState(false);
+  const base = {
+    border:"none", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:600,
+    borderRadius:"10px", transition:"all .22s ease", display:"inline-flex", alignItems:"center",
+    justifyContent:"center", gap:"7px", letterSpacing:".2px",
+  };
+  const sizes = { sm:{padding:"8px 16px",fontSize:"12px"}, md:{padding:"11px 22px",fontSize:"13px"}, lg:{padding:"15px 38px",fontSize:"15px"} };
+  const variants = {
+    gold:   { background:`linear-gradient(135deg,${T.gold},${T.goldL})`, color:"#000", ...(hov ? {transform:"translateY(-2px)", boxShadow:`0 10px 28px rgba(240,165,0,.38)`} : {}) },
+    outline:{ background:"transparent", border:`1px solid ${hov?T.gold:T.border}`, color: hov?T.gold:T.t1 },
+    ghost:  { background:hov?"rgba(255,255,255,.06)":"transparent", border:`1px solid ${T.border}`, color:T.t2 },
+    green:  { background:hov?"rgba(15,217,138,.18)":"rgba(15,217,138,.1)", border:`1px solid rgba(15,217,138,.3)`, color:T.green },
+    danger: { background:hov?"rgba(255,77,106,.18)":"rgba(255,77,106,.1)", border:`1px solid rgba(255,77,106,.3)`, color:T.red },
+    wa:     { background:"rgba(37,211,102,.1)", border:"1px solid rgba(37,211,102,.28)", color:"#25D166", ...(hov?{background:"rgba(37,211,102,.18)"}:{}) },
+    tg:     { background:"rgba(41,182,246,.1)", border:"1px solid rgba(41,182,246,.28)", color:"#29B6F6", ...(hov?{background:"rgba(41,182,246,.18)"}:{}) },
+  };
+  return (
+    <button
+      style={{...base, ...sizes[size], ...variants[variant], ...style}}
+      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+      onClick={onClick}
+    >{children}</button>
+  );
+};
+
+const Card = ({ children, style={}, accent, glow }) => (
+  <div style={{
+    background: T.card, border:`1px solid ${accent||T.border}`,
+    borderRadius:"16px", padding:"22px",
+    ...(glow ? {boxShadow:`0 0 40px ${glow}22`} : {}),
+    ...style
+  }}>{children}</div>
+);
+
+const Badge = ({ children, color=T.gold, style={} }) => (
+  <span style={{
+    display:"inline-flex", alignItems:"center", gap:"5px",
+    padding:"3px 11px", borderRadius:"20px", fontSize:"11px", fontWeight:700,
+    background:`${color}14`, border:`1px solid ${color}30`, color,
+    ...style
+  }}>{children}</span>
+);
+
+const Input = ({ label, ...props }) => (
+  <div>
+    {label && <div style={{fontSize:"10px",fontWeight:700,color:T.t2,letterSpacing:".5px",textTransform:"uppercase",marginBottom:"5px"}}>{label}</div>}
+    <input {...props} style={{
+      background:"rgba(255,255,255,.04)", border:`1px solid ${T.border}`, borderRadius:"10px",
+      color:T.t1, padding:"11px 14px", fontSize:"13px", fontFamily:"'Outfit',sans-serif",
+      width:"100%", outline:"none", transition:"border-color .2s",
+      ...props.style
+    }}
+    onFocus={e=>e.target.style.borderColor="rgba(240,165,0,.5)"}
+    onBlur={e=>e.target.style.borderColor=T.border}
+    />
+  </div>
+);
+
+const Select = ({ label, children, ...props }) => (
+  <div>
+    {label && <div style={{fontSize:"10px",fontWeight:700,color:T.t2,letterSpacing:".5px",textTransform:"uppercase",marginBottom:"5px"}}>{label}</div>}
+    <select {...props} style={{
+      background:"rgba(255,255,255,.04)", border:`1px solid ${T.border}`, borderRadius:"10px",
+      color:T.t1, padding:"11px 14px", fontSize:"13px", fontFamily:"'Outfit',sans-serif",
+      width:"100%", outline:"none", cursor:"pointer", appearance:"none",
+    }}>{children}</select>
+  </div>
+);
+
+const LiveDot = ({ color=T.green }) => (
+  <span style={{
+    width:"7px", height:"7px", borderRadius:"50%", background:color,
+    display:"inline-block", animation:"pulse 2s infinite"
+  }}/>
+);
+
+const GoldText = ({ children }) => (
+  <span style={{background:`linear-gradient(90deg,${T.gold},${T.goldL})`, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"}}>{children}</span>
+);
+
+// ─── ORB BACKGROUND ────────────────────────────────────────────────────────────
+const OrbBg = ({ o1="#F0A500", o2="#4F9EFF", o3="#A855F7" }) => (
+  <div style={{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none"}}>
+    <div style={{position:"absolute",width:560,height:560,borderRadius:"50%",background:o1,filter:"blur(100px)",opacity:.1,top:"-130px",left:"-130px",animation:"orbFloat1 22s ease-in-out infinite"}}/>
+    <div style={{position:"absolute",width:480,height:480,borderRadius:"50%",background:o2,filter:"blur(100px)",opacity:.1,bottom:"-100px",right:"-100px",animation:"orbFloat2 28s ease-in-out infinite"}}/>
+    <div style={{position:"absolute",width:260,height:260,borderRadius:"50%",background:o3,filter:"blur(80px)",opacity:.06,top:"40%",right:"22%",animation:"orbFloat1 35s ease-in-out infinite reverse"}}/>
+    <div style={{position:"absolute",inset:0,opacity:.02,backgroundImage:"radial-gradient(circle,rgba(255,255,255,.9)1px,transparent 1px)",backgroundSize:"50px 50px"}}/>
+  </div>
+);
+
+// ─── STAT COUNTER ──────────────────────────────────────────────────────────────
+const StatCounter = ({ target, prefix="", suffix="", duration=2200, color=T.gold }) => {
+  const [val, setVal] = useState(0);
+  const [started, setStarted] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if(e.isIntersecting && !started) setStarted(true); }, { threshold:.3 });
+    if(ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [started]);
+
+  useEffect(() => {
+    if(!started) return;
+    let startTime = null;
+    const step = (ts) => {
+      if(!startTime) startTime = ts;
+      const prog = Math.min((ts - startTime)/duration, 1);
+      setVal(Math.floor(prog * target));
+      if(prog < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [started, target, duration]);
+
+  return (
+    <span ref={ref} style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,color}}>
+      {prefix}{val >= 1000 ? val.toLocaleString() : val}{suffix}
+    </span>
+  );
+};
+
+// ─── PRICE TICKER ─────────────────────────────────────────────────────────────
+const PriceTicker = () => {
+  const items = [...COINS, ...COINS];
+  return (
+    <div style={{overflow:"hidden",borderTop:`1px solid ${T.border}`,borderBottom:`1px solid ${T.border}`,background:"rgba(255,255,255,.015)",padding:"10px 0"}}>
+      <div style={{display:"flex",animation:"ticker 44s linear infinite",whiteSpace:"nowrap"}}>
+        {items.map((c, i) => (
+          <span key={i} style={{display:"inline-flex",alignItems:"center",gap:"8px",padding:"0 24px",fontSize:"13px"}}>
+            <span style={{fontWeight:700,color:T.goldL}}>{c.sym}</span>
+            <span style={{fontWeight:700,color:T.t1}}>{c.s}</span>
+            <span>${c.p.toLocaleString()}</span>
+            <span style={{color:c.c>0?T.green:T.red,fontWeight:600}}>{c.c>0?"▲":"▼"}{Math.abs(c.c)}%</span>
+            <span style={{color:"rgba(255,255,255,.1)",fontSize:"18px"}}>│</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── SSL BADGE BAR ─────────────────────────────────────────────────────────────
+const SSLBar = ({ onLangChange, currentLang }) => (
+  <div style={{background:`rgba(15,217,138,.04)`,borderBottom:`1px solid rgba(15,217,138,.12)`,padding:"7px 24px"}}>
+    <div style={{maxWidth:1280,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"10px"}}>
+      <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+        {[
+          ["🔒","SSL/TLS 1.3",T.green],["🛡️","PCI DSS L1",T.blue],
+          ["⛓️","On-Chain Verified",T.gold],["🏦","FCA Licensed",T.purple],["✓","ISO 27001",T.green],
+        ].map(([ic,l,c]) => (
+          <span key={l} style={{display:"inline-flex",alignItems:"center",gap:"5px",padding:"3px 11px",borderRadius:"20px",fontSize:"11px",fontWeight:700,background:`${c}12`,border:`1px solid ${c}28`,color:c}}>
+            {ic} {l}
+          </span>
+        ))}
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
+        <span style={{fontSize:"10px",color:T.t3,fontWeight:700,letterSpacing:"1px"}}>LANG:</span>
+        {LANGS.slice(0,5).map(l => (
+          <button key={l.code} onClick={()=>onLangChange(l)}
+            style={{background:currentLang.code===l.code?"rgba(240,165,0,.12)":"transparent",border:`1px solid ${currentLang.code===l.code?"rgba(240,165,0,.32)":T.border}`,borderRadius:"6px",padding:"2px 8px",fontSize:"11px",fontWeight:700,color:currentLang.code===l.code?T.gold:T.t2,cursor:"pointer",fontFamily:"inherit"}}>
+            {l.flag} {l.code}
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+// ─── NAVBAR ─────────────────────────────────────────────────────────────────────
+const Navbar = ({ page, setPage }) => {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const h = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", h);
+    return () => window.removeEventListener("scroll", h);
+  }, []);
+
+  return (
+    <nav style={{
+      position:"sticky",top:0,zIndex:200,padding:"0 24px",
+      background: scrolled ? "rgba(4,4,14,.94)" : "transparent",
+      backdropFilter: scrolled ? "blur(28px)" : "none",
+      borderBottom: scrolled ? `1px solid ${T.border}` : "none",
+      transition:"all .35s ease",
+    }}>
+      <div style={{maxWidth:1280,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:66}}>
+        <div onClick={()=>setPage("landing")} style={{display:"flex",alignItems:"center",gap:"9px",cursor:"pointer"}}>
+          <div style={{width:35,height:35,borderRadius:"10px",background:`linear-gradient(135deg,${T.gold},${T.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"18px",color:"#000"}}>N</div>
+          <span style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"19px",fontWeight:900,color:T.t1}}>
+            Nexus<GoldText>Vault</GoldText>
+          </span>
+        </div>
+        <div style={{display:"flex",gap:"28px",alignItems:"center"}}>
+          {["About","Plans","Security","FAQ","Contact"].map(l=>(
+            <span key={l} style={{color:T.t2,fontSize:"13px",cursor:"pointer",transition:"color .18s"}}
+              onMouseEnter={e=>e.target.style.color=T.t1} onMouseLeave={e=>e.target.style.color=T.t2}>{l}</span>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+          <Btn variant="outline" size="sm" onClick={()=>setPage("login")}>Sign In</Btn>
+          <Btn variant="gold" size="sm" onClick={()=>setPage("register")}>Get Started</Btn>
+          <Btn variant="outline" size="sm" style={{borderColor:"rgba(168,85,247,.4)",color:T.purple}} onClick={()=>setPage("dashboard")}>Dashboard</Btn>
+          <Btn variant="outline" size="sm" style={{borderColor:"rgba(168,85,247,.28)",color:T.purple,fontSize:"11px"}} onClick={()=>setPage("admin")}>Admin</Btn>
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+// ─── HERO SECTION ─────────────────────────────────────────────────────────────
+const Hero = ({ setPage }) => {
+  const chartBars = [38,44,40,52,55,50,62,60,68,65,72,78,74,82,88];
+  const max = Math.max(...chartBars), min = Math.min(...chartBars), rng = max-min;
+
+  return (
+    <section style={{position:"relative",overflow:"hidden",minHeight:"92vh",display:"flex",alignItems:"center",padding:"50px 24px"}}>
+      <OrbBg/>
+      <div style={{maxWidth:1280,margin:"0 auto",position:"relative",zIndex:1,width:"100%"}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"60px",alignItems:"center"}}>
+          <div className="fade-in">
+            <Badge color={T.green} style={{marginBottom:"22px"}}>
+              <LiveDot/> AI Trading Active · Platform Live 24/7
+            </Badge>
+            <h1 style={{fontSize:"clamp(36px,5vw,68px)",fontWeight:900,lineHeight:1.04,color:T.t1,marginBottom:"20px"}}>
+              Earn <GoldText>50% Weekly</GoldText><br/>ROI on Crypto<br/>— Guaranteed
+            </h1>
+            <p style={{fontSize:"16px",color:T.t2,lineHeight:1.82,marginBottom:"34px",maxWidth:"500px"}}>
+              NexusVault's institutional AI trading engine delivers consistent, blockchain-verified weekly returns to 3,400+ active investors across 180 countries. Start with just $500 in BTC, ETH, USDT, or BNB.
+            </p>
+            <div style={{display:"flex",gap:"12px",flexWrap:"wrap",marginBottom:"44px"}}>
+              <Btn variant="gold" size="lg" onClick={()=>setPage("register")}>Start Investing →</Btn>
+              <Btn variant="outline" size="lg">View All Plans</Btn>
+            </div>
+
+            {/* REAL-TIME STATS COUNTER */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"20px",padding:"22px",background:"rgba(255,255,255,.03)",border:`1px solid ${T.border}`,borderRadius:"16px"}}>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:"clamp(28px,3.5vw,46px)",marginBottom:"3px"}}>
+                  <StatCounter target={3400} suffix="+" color={T.gold}/>
+                </div>
+                <div style={{fontSize:"12px",color:T.t2}}>Active Investors</div>
+              </div>
+              <div style={{textAlign:"center",borderLeft:`1px solid ${T.border}`,borderRight:`1px solid ${T.border}`}}>
+                <div style={{fontSize:"clamp(28px,3.5vw,46px)",marginBottom:"3px"}}>
+                  <StatCounter target={214} prefix="$" suffix="M+" color={T.gold}/>
+                </div>
+                <div style={{fontSize:"12px",color:T.t2}}>Total Paid Out</div>
+              </div>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:"clamp(28px,3.5vw,46px)",marginBottom:"3px"}}>
+                  <StatCounter target={50} suffix="%" color={T.green}/>
+                </div>
+                <div style={{fontSize:"12px",color:T.t2}}>Weekly ROI</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="fade-in-delay">
+            <Card accent="rgba(240,165,0,.2)">
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"20px"}}>
+                <div>
+                  <div style={{fontSize:"12px",color:T.t2,marginBottom:"4px"}}>Portfolio Balance</div>
+                  <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"40px",fontWeight:900,color:T.t1}}>$48,750</div>
+                  <div style={{fontSize:"12px",color:T.green,marginTop:"3px"}}>▲ +$9,250 this week (+23.4%)</div>
+                </div>
+                <div style={{background:"rgba(240,165,0,.1)",border:"1px solid rgba(240,165,0,.22)",borderRadius:"12px",padding:"11px",fontSize:"22px"}}>📈</div>
+              </div>
+
+              {/* Mini chart */}
+              <div style={{display:"flex",alignItems:"flex-end",gap:"3px",height:"70px",marginBottom:"20px"}}>
+                {chartBars.map((v,i) => (
+                  <div key={i} style={{
+                    height:`${Math.round(((v-min)/rng)*100)}%`,flex:1,
+                    background:`rgba(240,165,0,.2)`,borderRadius:"3px 3px 0 0",minWidth:"8px"
+                  }}/>
+                ))}
+              </div>
+
+              <div style={{borderTop:`1px solid ${T.border}`,paddingTop:"16px",display:"flex",flexDirection:"column",gap:"10px"}}>
+                <div style={{fontSize:"10px",color:T.t3,letterSpacing:"1.8px",textTransform:"uppercase",fontWeight:700,marginBottom:"4px"}}>Recent Earnings</div>
+                {[["Growth Plan ROI","3 hrs ago","+$3,750"],["Referral Commission ×3","Yesterday","+$780"],["Starter Plan ROI","2 days ago","+$250"]].map(([l,t,a])=>(
+                  <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div><div style={{fontSize:"13px",fontWeight:500}}>{l}</div><div style={{fontSize:"11px",color:T.t3}}>{t}</div></div>
+                    <span style={{color:T.green,fontWeight:700,fontSize:"13px"}}>{a}</span>
+                  </div>
+                ))}
+              </div>
+              <Btn variant="gold" style={{width:"100%",marginTop:"18px",padding:"13px"}} onClick={()=>setPage("register")}>
+                Open Free Account →
+              </Btn>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ─── ABOUT SECTION ────────────────────────────────────────────────────────────
+const About = () => (
+  <section style={{padding:"80px 24px",background:`linear-gradient(180deg,transparent,rgba(240,165,0,.018),transparent)`}}>
+    <div style={{maxWidth:1280,margin:"0 auto"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"64px",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"2.5px",textTransform:"uppercase",color:T.gold,marginBottom:"11px"}}>About NexusVault</div>
+          <h2 style={{fontSize:"clamp(28px,4vw,48px)",fontWeight:900,color:T.t1,lineHeight:1.06,marginBottom:"16px"}}>
+            World's Premier <GoldText>AI Crypto Investment</GoldText> Engine
+          </h2>
+          <p style={{color:T.t2,lineHeight:1.85,fontSize:"15px",marginBottom:"16px"}}>
+            Founded in 2019, NexusVault's proprietary AI engine analyzes 10,000+ market signals per second across spot, futures, and DeFi — capturing arbitrage, momentum, and yield opportunities continuously. Every transaction is immutably recorded on-chain.
+          </p>
+          <p style={{color:T.t2,lineHeight:1.85,fontSize:"15px",marginBottom:"28px"}}>
+            $214M+ paid to 3,400+ investors across 180 countries with 99.9% uptime and zero missed weekly payouts. Fully licensed, KYC/AML compliant, and independently audited quarterly.
+          </p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
+            {["✓ SSL Secured","✓ ISO 27001","✓ GDPR","✓ Licensed 2019","✓ 180+ Countries","✓ On-Chain Verified"].map(b=>(
+              <Badge key={b} color={b.includes("Licensed")?T.gold:b.includes("180")?T.blue:T.green}>{b}</Badge>
+            ))}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"13px"}}>
+          {[
+            [null,3400,"+","Active Investors",T.gold],
+            [null,214,"$","M+ Paid Out",T.gold],
+            ["99.9%",null,"","Uptime SLA",T.green],
+            ["4.9★",null,"","Investor Rating",T.blue],
+            [null,180,"+","Countries Served",T.purple],
+            ["5 Yrs",null,"","Track Record",T.cyan],
+          ].map(([fixed,target,pre,label,color],i) => (
+            <Card key={i} style={{textAlign:"center",transition:"transform .25s,border-color .25s"}}
+              onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.borderColor=T.borderH}}
+              onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.borderColor=T.border}}>
+              <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"32px",fontWeight:900,color,marginBottom:"5px"}}>
+                {fixed || <StatCounter target={target} prefix={pre.includes("$")?pre:""} suffix={pre.includes("$")?"M+":pre} color={color}/>}
+              </div>
+              <div style={{fontSize:"12px",color:T.t2}}>{label}</div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
+// ─── PLANS SECTION ────────────────────────────────────────────────────────────
+const Plans = ({ setPage }) => (
+  <section style={{padding:"80px 24px"}}>
+    <div style={{maxWidth:1280,margin:"0 auto"}}>
+      <div style={{textAlign:"center",marginBottom:"52px"}}>
+        <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"2.5px",textTransform:"uppercase",color:T.gold,marginBottom:"11px"}}>Investment Plans</div>
+        <h2 style={{fontSize:"clamp(28px,4vw,48px)",fontWeight:900,color:T.t1,marginBottom:"14px"}}>
+          Choose Your <GoldText>Growth Package</GoldText>
+        </h2>
+        <p style={{fontSize:"15px",color:T.t2,maxWidth:"560px",margin:"0 auto",lineHeight:1.8}}>
+          All plans include instant on-chain deposit confirmation, weekly ROI payouts, and 24/7 live support.
+        </p>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(228px,1fr))",gap:"20px",marginBottom:"36px"}}>
+        {PLANS.map(p => (
+          <div key={p.id}
+            style={{
+              background:T.card, border:`1px solid ${p.hot?"rgba(240,165,0,.42)":T.border}`,
+              borderRadius:"22px", padding:"28px", position:"relative", overflow:"hidden",
+              transition:"transform .28s, border-color .28s",
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-5px)";if(!p.hot)e.currentTarget.style.borderColor=T.borderH}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="none";if(!p.hot)e.currentTarget.style.borderColor=T.border}}>
+            <div style={{position:"absolute",top:0,left:0,right:0,height:"2px",background:p.color,borderRadius:"22px 22px 0 0"}}/>
+            {p.hot && <div style={{position:"absolute",top:"14px",right:"14px"}}><Badge color={T.gold} style={{fontSize:"9px"}}>MOST POPULAR</Badge></div>}
+            <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"2px",color:p.color,marginBottom:"8px"}}>{p.name.toUpperCase()}</div>
+            <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"58px",fontWeight:900,color:p.color,lineHeight:1}}>{p.roi}%</div>
+            <div style={{fontSize:"12px",color:T.t2,marginBottom:"18px"}}>weekly ROI</div>
+            <div style={{display:"flex",flexDirection:"column",gap:"9px",marginBottom:"18px",fontSize:"13px",borderTop:`1px solid ${T.border}`,paddingTop:"14px"}}>
+              {[["Min Deposit",`$${p.min.toLocaleString()}`],["Max Deposit",p.max?`$${p.max.toLocaleString()}`:"Unlimited"],["Accepted Coins","BTC·ETH·USDT·BNB"],["Referral Bonus","10%"]].map(([k,v])=>(
+                <div key={k} style={{display:"flex",justifyContent:"space-between"}}>
+                  <span style={{color:T.t2}}>{k}</span><strong style={{color:T.t1}}>{v}</strong>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:"6px",fontSize:"12px",color:T.t2,marginBottom:"20px"}}>
+              {["✅ Instant on-chain confirmation","✅ Weekly ROI payout","✅ 24/7 live chat & email support"].map(f=><div key={f}>{f}</div>)}
+            </div>
+            <Btn variant={p.hot?"gold":"outline"} style={{width:"100%",padding:"12px",
+              ...(p.hot?{}:{borderColor:`${p.color}44`,color:p.color})}}
+              onClick={()=>setPage("register")}>
+              Activate Plan →
+            </Btn>
+          </div>
+        ))}
+      </div>
+
+      {/* COMPARISON TABLE */}
+      <Card>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13px"}}>
+            <thead>
+              <tr style={{background:"rgba(255,255,255,.025)",borderBottom:`1px solid ${T.border}`}}>
+                {["Plan","Weekly ROI","Min Deposit","Max Deposit","Referral","Withdrawal"].map(h=>(
+                  <th key={h} style={{padding:"11px 16px",textAlign:"left",fontSize:"10px",fontWeight:700,color:T.t3,letterSpacing:".8px",textTransform:"uppercase"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {PLANS.map(p=>(
+                <tr key={p.id} style={{borderBottom:`1px solid rgba(255,255,255,.04)`,background:p.hot?"rgba(240,165,0,.03)":"transparent"}}>
+                  <td style={{padding:"13px 16px",fontWeight:700,color:p.color}}>{p.icon} {p.name}</td>
+                  <td style={{padding:"13px 16px",fontWeight:700,color:p.color}}>{p.roi}%</td>
+                  <td style={{padding:"13px 16px"}}>${p.min.toLocaleString()}</td>
+                  <td style={{padding:"13px 16px"}}>{p.max?`$${p.max.toLocaleString()}`:"Unlimited"}</td>
+                  <td style={{padding:"13px 16px"}}>10%</td>
+                  <td style={{padding:"13px 16px"}}><Badge color={T.green} style={{fontSize:"10px"}}>Anytime</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  </section>
+);
+
+// ─── HOW IT WORKS ─────────────────────────────────────────────────────────────
+const HowItWorks = ({ setPage }) => (
+  <section style={{padding:"80px 24px",background:`linear-gradient(180deg,transparent,rgba(79,158,255,.018),transparent)`}}>
+    <div style={{maxWidth:1280,margin:"0 auto"}}>
+      <div style={{textAlign:"center",marginBottom:"52px"}}>
+        <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"2.5px",textTransform:"uppercase",color:T.gold,marginBottom:"11px"}}>How It Works</div>
+        <h2 style={{fontSize:"clamp(28px,4vw,48px)",fontWeight:900,color:T.t1}}>4 Steps to <GoldText>Weekly Profits</GoldText></h2>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:"18px",marginBottom:"40px"}}>
+        {[
+          ["01","Create Account","Register with email, complete KYC, and unlock full platform access in minutes.",T.blue,"👤"],
+          ["02","Deposit Crypto","Send BTC, ETH, USDT, or BNB. Confirmed on-chain automatically — instant email notification.",T.gold,"💰"],
+          ["03","Choose a Plan","Select from Starter to VIP Pro. Activate instantly and track via your dashboard.",T.purple,"📊"],
+          ["04","Earn Weekly","ROI credited every 7 days. Withdraw anytime to any crypto wallet in 24–48h.",T.green,"🏆"],
+        ].map(([n,title,desc,color,ic])=>(
+          <Card key={n} style={{textAlign:"center",padding:"28px 20px",transition:"transform .25s,border-color .25s"}}
+            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor=T.borderH}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.borderColor=T.border}}>
+            <div style={{width:"46px",height:"46px",borderRadius:"13px",background:`${color}14`,color,fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"17px",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>{n}</div>
+            <div style={{fontSize:"28px",marginBottom:"12px"}}>{ic}</div>
+            <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"16px",fontWeight:800,marginBottom:"9px"}}>{title}</div>
+            <div style={{fontSize:"13px",color:T.t2,lineHeight:1.75}}>{desc}</div>
+          </Card>
+        ))}
+      </div>
+      <div style={{textAlign:"center"}}><Btn variant="gold" size="lg" onClick={()=>setPage("register")}>Get Started Free</Btn></div>
+    </div>
+  </section>
+);
+
+// ─── SECURITY SECTION ─────────────────────────────────────────────────────────
+const Security = () => (
+  <section style={{padding:"80px 24px"}}>
+    <div style={{maxWidth:1280,margin:"0 auto"}}>
+      <div style={{textAlign:"center",marginBottom:"48px"}}>
+        <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"2.5px",textTransform:"uppercase",color:T.gold,marginBottom:"11px"}}>Security & Blockchain Transparency</div>
+        <h2 style={{fontSize:"clamp(28px,4vw,48px)",fontWeight:900,color:T.t1}}>Your Funds Are <GoldText>100% Protected</GoldText></h2>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:"16px",marginBottom:"28px"}}>
+        {[
+          ["🔐","AES-256 Encryption","Military-grade encryption on all data, sessions, and transactions end-to-end.",T.blue],
+          ["🧊","95% Cold Storage","Multi-sig cold wallets, completely air-gapped and offline at all times.",T.cyan],
+          ["⛓️","Blockchain Verified","Every tx immutably recorded on-chain — verify independently, anytime.",T.gold],
+          ["🤖","AI Threat Detection","24/7 ML anomaly detection and real-time incident response system.",T.green],
+          ["🪪","KYC/AML Compliant","Full FATF & global regulatory compliance on all investor accounts.",T.purple],
+          ["📋","Quarterly Audits","Independent security audits with published public reports each quarter.",T.red],
+        ].map(([ic,title,desc,color])=>(
+          <Card key={title} style={{transition:"transform .25s,border-color .25s"}}
+            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.borderColor=T.borderH}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.borderColor=T.border}}>
+            <div style={{fontSize:"26px",marginBottom:"11px"}}>{ic}</div>
+            <div style={{fontWeight:700,fontSize:"13px",marginBottom:"7px"}}>{title}</div>
+            <div style={{fontSize:"12px",color:T.t2,lineHeight:1.7}}>{desc}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* SSL CERTIFICATE GRID */}
+      <Card accent="rgba(15,217,138,.18)" style={{background:"rgba(15,217,138,.025)"}}>
+        <div style={{textAlign:"center",marginBottom:"20px"}}>
+          <div style={{fontSize:"11px",fontWeight:700,color:T.green,letterSpacing:"2px",marginBottom:"6px"}}>SECURITY CERTIFICATIONS</div>
+          <div style={{fontSize:"14px",color:T.t2}}>NexusVault meets and exceeds global financial security standards</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:"12px"}}>
+          {[
+            ["🔒","SSL/TLS 1.3","256-bit encryption",T.green],
+            ["💳","PCI DSS L1","Payment security",T.blue],
+            ["🏆","ISO 27001:2022","Info security mgmt",T.gold],
+            ["📊","SOC 2 Type II","Security controls",T.purple],
+            ["🇪🇺","GDPR Compliant","Data protection",T.cyan],
+            ["🏦","FCA Registered","Financial license",T.green],
+          ].map(([ic,title,sub,c])=>(
+            <div key={title} style={{textAlign:"center",padding:"14px",border:`1px solid ${c}22`,borderRadius:"10px",background:`${c}06`}}>
+              <div style={{fontSize:"22px",marginBottom:"6px"}}>{ic}</div>
+              <div style={{fontWeight:700,fontSize:"11px",color:c}}>{title}</div>
+              <div style={{fontSize:"10px",color:T.t3,marginTop:"3px"}}>{sub}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  </section>
+);
+
+// ─── TESTIMONIALS ─────────────────────────────────────────────────────────────
+const Testimonials = () => (
+  <section style={{padding:"80px 24px",background:`linear-gradient(180deg,transparent,rgba(168,85,247,.016),transparent)`}}>
+    <div style={{maxWidth:1280,margin:"0 auto"}}>
+      <div style={{textAlign:"center",marginBottom:"52px"}}>
+        <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"2.5px",textTransform:"uppercase",color:T.gold,marginBottom:"11px"}}>Testimonials</div>
+        <h2 style={{fontSize:"clamp(28px,4vw,48px)",fontWeight:900,color:T.t1}}>3,400+ Investors <GoldText>Can't Be Wrong</GoldText></h2>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(270px,1fr))",gap:"18px"}}>
+        {TESTIMONIALS.map(t=>(
+          <Card key={t.name} style={{transition:"border-color .25s,transform .25s"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(240,165,0,.28)";e.currentTarget.style.transform="translateY(-3px)"}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform="none"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"12px"}}>
+              <div style={{display:"flex",gap:"11px",alignItems:"center"}}>
+                <div style={{width:46,height:46,borderRadius:"50%",background:`linear-gradient(135deg,${t.color},${t.color}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"14px",color:t.color===T.gold?"#000":"#fff",flexShrink:0}}>{t.init}</div>
+                <div><div style={{fontWeight:700,fontSize:"13px"}}>{t.name}</div><div style={{fontSize:"11px",color:T.t2}}>{t.role}</div></div>
+              </div>
+              <span style={{color:T.green,fontWeight:700,fontSize:"13px",flexShrink:0}}>{t.profit}</span>
+            </div>
+            <div style={{color:T.gold,fontSize:"14px",marginBottom:"9px"}}>{"★".repeat(t.stars)}</div>
+            <p style={{fontSize:"13px",color:T.t2,lineHeight:1.78}}>"{t.text}"</p>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+// ─── FAQ SECTION ──────────────────────────────────────────────────────────────
+const FAQ = () => {
+  const [open, setOpen] = useState(null);
+  return (
+    <section style={{padding:"80px 24px"}}>
+      <div style={{maxWidth:820,margin:"0 auto"}}>
+        <div style={{textAlign:"center",marginBottom:"48px"}}>
+          <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"2.5px",textTransform:"uppercase",color:T.gold,marginBottom:"11px"}}>FAQ</div>
+          <h2 style={{fontSize:"clamp(28px,4vw,48px)",fontWeight:900,color:T.t1}}>Your Questions <GoldText>Answered</GoldText></h2>
+        </div>
+        {FAQS.map((f,i)=>(
+          <div key={i} onClick={()=>setOpen(open===i?null:i)}
+            style={{borderRadius:"10px",border:`1px solid ${open===i?"rgba(240,165,0,.32)":T.border}`,background:T.card,marginBottom:"9px",overflow:"hidden",cursor:"pointer",transition:"border-color .2s"}}>
+            <div style={{padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:"14px",fontWeight:600}}>
+              <span>{f.q}</span>
+              <span style={{transform:open===i?"rotate(90deg)":"none",transition:"transform .28s",fontSize:"17px",color:T.t2}}>›</span>
+            </div>
+            {open===i && (
+              <div style={{padding:"0 20px 16px",fontSize:"13px",color:T.t2,lineHeight:1.78,borderTop:`1px solid ${T.border}`,paddingTop:"12px"}}>
+                {f.a}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+// ─── CONTACT / SUPPORT SECTION ────────────────────────────────────────────────
+const Contact = ({ setPage, currentLang, setCurrentLang }) => (
+  <section style={{padding:"80px 24px",background:`linear-gradient(180deg,transparent,rgba(240,165,0,.02),transparent)`}}>
+    <div style={{maxWidth:1280,margin:"0 auto"}}>
+      <div style={{textAlign:"center",marginBottom:"50px"}}>
+        <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"2.5px",textTransform:"uppercase",color:T.gold,marginBottom:"11px"}}>Support & Contact</div>
+        <h2 style={{fontSize:"clamp(28px,4vw,48px)",fontWeight:900,color:T.t1}}>We're Here <GoldText>24/7 For You</GoldText></h2>
+      </div>
+
+      {/* SUPPORT BUTTONS */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"18px",marginBottom:"28px"}}>
+        {/* WHATSAPP */}
+        <Card accent="rgba(37,211,102,.22)" style={{textAlign:"center"}}>
+          <div style={{width:56,height:56,borderRadius:"16px",background:"rgba(37,211,102,.12)",border:"1px solid rgba(37,211,102,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"26px",margin:"0 auto 14px"}}>💬</div>
+          <div style={{fontWeight:700,fontSize:"15px",marginBottom:"6px"}}>WhatsApp Support</div>
+          <div style={{fontSize:"12px",color:T.t2,marginBottom:"14px"}}>Instant response · 24/7 live agents</div>
+          <div style={{fontSize:"13px",fontWeight:700,color:"#25D166",marginBottom:"14px"}}>+1 (800) NXV-0001</div>
+          <Btn variant="wa" style={{width:"100%",padding:"12px"}}>Open WhatsApp →</Btn>
+        </Card>
+
+        {/* TELEGRAM */}
+        <Card accent="rgba(41,182,246,.22)" style={{textAlign:"center"}}>
+          <div style={{width:56,height:56,borderRadius:"16px",background:"rgba(41,182,246,.12)",border:"1px solid rgba(41,182,246,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"26px",margin:"0 auto 14px"}}>✈️</div>
+          <div style={{fontWeight:700,fontSize:"15px",marginBottom:"6px"}}>Telegram Channel</div>
+          <div style={{fontSize:"12px",color:T.t2,marginBottom:"14px"}}>5,200+ members · Live market signals</div>
+          <div style={{fontSize:"13px",fontWeight:700,color:"#29B6F6",marginBottom:"14px"}}>@nexusvaultofficial</div>
+          <Btn variant="tg" style={{width:"100%",padding:"12px"}}>Join Telegram →</Btn>
+        </Card>
+
+        {/* LIVE CHAT */}
+        <Card accent="rgba(240,165,0,.22)" style={{textAlign:"center"}}>
+          <div style={{width:56,height:56,borderRadius:"16px",background:"rgba(240,165,0,.12)",border:"1px solid rgba(240,165,0,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"26px",margin:"0 auto 14px"}}>💻</div>
+          <div style={{fontWeight:700,fontSize:"15px",marginBottom:"6px"}}>Live Chat Widget</div>
+          <div style={{fontSize:"12px",color:T.t2,marginBottom:"14px"}}>30 sec avg response · AI + human agents</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"7px",marginBottom:"14px"}}>
+            <LiveDot/><span style={{fontSize:"13px",fontWeight:700,color:T.green}}>Agents Online Now</span>
+          </div>
+          <Btn variant="gold" style={{width:"100%",padding:"12px"}} onClick={()=>setPage("chat")}>Open Live Chat →</Btn>
+        </Card>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"18px"}}>
+        {/* CONTACT FORM */}
+        <Card accent="rgba(240,165,0,.14)">
+          <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"18px",fontWeight:800,marginBottom:"5px"}}>Send a Message</div>
+          <div style={{fontSize:"12px",color:T.t2,marginBottom:"20px"}}>Email reply within 2 hours. Notification sent on response.</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"}}>
+              <Input label="First Name" type="text" placeholder="John"/>
+              <Input label="Last Name" type="text" placeholder="Smith"/>
+            </div>
+            <Input label="Email Address" type="email" placeholder="investor@email.com"/>
+            <Select label="Subject">
+              <option>Deposit Issues</option>
+              <option>Withdrawal Request</option>
+              <option>Account &amp; KYC</option>
+              <option>Investment Plans</option>
+              <option>Technical Support</option>
+            </Select>
+            <div>
+              <div style={{fontSize:"10px",fontWeight:700,color:T.t2,letterSpacing:".5px",marginBottom:"5px",textTransform:"uppercase"}}>Message</div>
+              <textarea placeholder="Describe your query..." rows={4}
+                style={{background:"rgba(255,255,255,.04)",border:`1px solid ${T.border}`,borderRadius:"10px",color:T.t1,padding:"11px 14px",fontSize:"13px",fontFamily:"'Outfit',sans-serif",width:"100%",outline:"none",resize:"vertical"}}/>
+            </div>
+            <Btn variant="gold" style={{width:"100%",padding:"12px",fontSize:"14px"}}>Send Message — Get Email Reply →</Btn>
+          </div>
+        </Card>
+
+        {/* MULTI-LANGUAGE SUPPORT */}
+        <Card>
+          <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"18px",fontWeight:800,marginBottom:"5px"}}>Multi-Language Support</div>
+          <div style={{fontSize:"12px",color:T.t2,marginBottom:"18px"}}>NexusVault is available in 10 languages. Select yours:</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"18px"}}>
+            {LANGS.map(l=>(
+              <button key={l.code} onClick={()=>setCurrentLang(l)}
+                style={{display:"flex",alignItems:"center",gap:"8px",padding:"9px 12px",border:`1px solid ${currentLang.code===l.code?"rgba(240,165,0,.32)":T.border}`,borderRadius:"10px",cursor:"pointer",fontSize:"13px",fontWeight:500,background:currentLang.code===l.code?"rgba(240,165,0,.07)":"transparent",color:currentLang.code===l.code?T.gold:T.t2,fontFamily:"inherit",transition:"all .18s"}}>
+                {l.flag} {l.name}
+              </button>
+            ))}
+          </div>
+          <div style={{padding:"13px",background:"rgba(240,165,0,.05)",border:"1px solid rgba(240,165,0,.15)",borderRadius:"10px",marginBottom:"12px"}}>
+            <div style={{fontSize:"10px",fontWeight:700,color:T.gold,letterSpacing:"1px",marginBottom:"4px"}}>CURRENT LANGUAGE</div>
+            <div style={{fontSize:"14px",fontWeight:600}}>{currentLang.flag} {currentLang.name} ({currentLang.code})</div>
+          </div>
+          <div style={{padding:"12px",background:"rgba(15,217,138,.04)",border:"1px solid rgba(15,217,138,.15)",borderRadius:"10px"}}>
+            <div style={{fontSize:"10px",fontWeight:700,color:T.green,letterSpacing:"1px",marginBottom:"4px"}}>EMAIL NOTIFICATIONS IN YOUR LANGUAGE</div>
+            <div style={{fontSize:"12px",color:T.t2,lineHeight:1.7}}>All deposit confirmations, ROI payouts, withdrawal updates, and security alerts are sent in your selected language.</div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </section>
+);
+
+// ─── EMAIL SUBSCRIPTION BANNER ────────────────────────────────────────────────
+const EmailBanner = () => (
+  <div style={{background:`linear-gradient(90deg,rgba(79,158,255,.08),rgba(15,217,138,.06))`,borderTop:`1px solid rgba(79,158,255,.12)`,borderBottom:`1px solid rgba(15,217,138,.12)`,padding:"14px 24px"}}>
+    <div style={{maxWidth:1280,margin:"0 auto",display:"flex",alignItems:"center",gap:"16px",flexWrap:"wrap"}}>
+      <div style={{fontSize:"20px"}}>📧</div>
+      <div style={{flex:1}}>
+        <div style={{fontWeight:700,fontSize:"14px"}}>Instant Email Notifications</div>
+        <div style={{fontSize:"12px",color:T.t2}}>Real-time alerts for deposits, ROI payouts, withdrawals, security events, and referral commissions in your language.</div>
+      </div>
+      <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+        <input type="email" placeholder="Enter email for alerts"
+          style={{background:"rgba(255,255,255,.06)",border:`1px solid ${T.border}`,borderRadius:"9px",color:T.t1,padding:"9px 14px",fontSize:"13px",fontFamily:"'Outfit',sans-serif",width:"220px",outline:"none"}}/>
+        <Btn variant="gold" size="sm">Subscribe</Btn>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── FOOTER ────────────────────────────────────────────────────────────────────
+const Footer = ({ setPage }) => (
+  <footer style={{background:T.bg2,borderTop:`1px solid ${T.border}`,padding:"52px 24px 22px"}}>
+    <div style={{maxWidth:1280,margin:"0 auto"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1.8fr 1fr 1fr 1fr 1fr",gap:"36px",marginBottom:"44px"}}>
+        <div>
+          <div style={{display:"flex",alignItems:"center",gap:"9px",marginBottom:"14px",cursor:"pointer"}} onClick={()=>setPage("landing")}>
+            <div style={{width:32,height:32,borderRadius:"9px",background:`linear-gradient(135deg,${T.gold},${T.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"16px",color:"#000"}}>N</div>
+            <span style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"17px",fontWeight:900,color:T.t1}}>Nexus<GoldText>Vault</GoldText></span>
+          </div>
+          <p style={{fontSize:"13px",color:T.t2,lineHeight:1.78,marginBottom:"16px",maxWidth:"230px"}}>World's most trusted AI-powered crypto investment platform. Building generational wealth since 2019.</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"7px",marginBottom:"14px"}}>
+            {[["🔒 SSL",T.green],["✓ PCI DSS",T.green],["✓ 2FA",T.green],["✓ Licensed",T.gold]].map(([b,c])=>(
+              <Badge key={b} color={c} style={{fontSize:"10px"}}>{b}</Badge>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:"7px"}}>
+            {["𝕏","💬","✈️"].map(ic=>(
+              <div key={ic} style={{width:32,height:32,borderRadius:"8px",background:T.card,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:"13px",color:T.t2}}>{ic}</div>
+            ))}
+          </div>
+        </div>
+        {[
+          { title:"Platform", links:[["Dashboard",()=>setPage("dashboard")],["Plans",null],["Referral",null],["KYC",null],["API Docs",()=>setPage("docs")]] },
+          { title:"Legal",    links:[["Terms of Service",null],["Privacy Policy",null],["AML Policy",null],["Risk Disclosure",null],["Cookie Policy",null]] },
+          { title:"Support",  links:[["Live Chat",()=>setPage("chat")],["WhatsApp",null],["Telegram",null],["Email Support",null],["Help Center",null]] },
+          { title:"Developer",links:[["API Docs",()=>setPage("docs")],["DB Schema",()=>setPage("docs")],["Folder Structure",()=>setPage("docs")],["Tech Stack",()=>setPage("docs")]] },
+        ].map(col=>(
+          <div key={col.title}>
+            <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",color:T.t1,marginBottom:"13px"}}>{col.title}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:"9px"}}>
+              {col.links.map(([l,cb])=>(
+                <span key={l} onClick={cb||undefined} style={{fontSize:"13px",color:T.t2,cursor:cb?"pointer":"default",transition:"color .18s"}}
+                  onMouseEnter={e=>{if(cb)e.target.style.color=T.gold}} onMouseLeave={e=>e.target.style.color=T.t2}>{l}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{borderTop:`1px solid ${T.border}`,paddingTop:"20px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"12px"}}>
+        <div style={{fontSize:"11px",color:T.t3,maxWidth:"580px"}}>© 2024 NexusVault Inc. All rights reserved. Crypto investments involve risk. Past returns do not guarantee future results. Invest responsibly.</div>
+        <Btn variant="gold" size="sm" onClick={()=>{}}>📖 Tech Documentation →</Btn>
+      </div>
+    </div>
+  </footer>
+);
+
+// ─── LANDING PAGE ─────────────────────────────────────────────────────────────
+const LandingPage = ({ setPage, currentLang, setCurrentLang }) => (
+  <div>
+    <SSLBar onLangChange={setCurrentLang} currentLang={currentLang}/>
+    <Hero setPage={setPage}/>
+    <PriceTicker/>
+    <EmailBanner/>
+    <About/>
+    <Plans setPage={setPage}/>
+    <HowItWorks setPage={setPage}/>
+    <Security/>
+    <Testimonials/>
+    <FAQ/>
+    <Contact setPage={setPage} currentLang={currentLang} setCurrentLang={setCurrentLang}/>
+    <Footer setPage={setPage}/>
+  </div>
+);
+
+// ─── AUTH PAGES ────────────────────────────────────────────────────────────────
+const AuthPage = ({ mode, setPage }) => {
+  const [loading, setLoading] = useState(false);
+  const isLogin = mode === "login";
+
+  const handleSubmit = () => {
+    setLoading(true);
+    setTimeout(() => { setLoading(false); setPage("dashboard"); }, 1400);
+  };
+
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px",background:T.bg,position:"relative",overflow:"hidden"}}>
+      <OrbBg/>
+      <div style={{width:"100%",maxWidth:isLogin?420:460,position:"relative",zIndex:1,animation:"fadeUp .5s ease"}}>
+        <div style={{textAlign:"center",marginBottom:"30px",cursor:"pointer"}} onClick={()=>setPage("landing")}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:"10px"}}>
+            <div style={{width:40,height:40,borderRadius:"11px",background:`linear-gradient(135deg,${T.gold},${T.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"20px",color:"#000"}}>N</div>
+            <span style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"22px",fontWeight:900,color:T.t1}}>Nexus<GoldText>Vault</GoldText></span>
+          </div>
+        </div>
+        <Card accent="rgba(240,165,0,.15)">
+          <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"22px",fontWeight:900,marginBottom:"4px"}}>{isLogin?"Welcome back":"Create your account"}</div>
+          <div style={{fontSize:"13px",color:T.t2,marginBottom:"24px"}}>{isLogin?"Sign in to your investor account":"Join 3,400+ investors earning 50%+ weekly returns"}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"13px"}}>
+            {!isLogin && (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"}}>
+                <Input label="First Name" type="text" placeholder="John"/>
+                <Input label="Last Name" type="text" placeholder="Smith"/>
+              </div>
+            )}
+            <Input label="Email Address" type="email" placeholder="investor@email.com"/>
+            <Input label="Password" type="password" placeholder={isLogin?"Enter password":"Min 8 chars, 1 number, 1 symbol"}/>
+            {!isLogin && <>
+              <Input label="Phone Number" type="tel" placeholder="+1 (555) 000-0000"/>
+              <Select label="Language Preference">
+                {LANGS.map(l=><option key={l.code}>{l.flag} {l.name}</option>)}
+              </Select>
+              <Input label="Referral Code (Optional)" type="text" placeholder="REF-NV7742"/>
+            </>}
+            {isLogin && (
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <label style={{display:"flex",alignItems:"center",gap:"7px",cursor:"pointer",fontSize:"12px",color:T.t2}}>
+                  <input type="checkbox" style={{accentColor:T.gold}}/> Remember me
+                </label>
+                <span style={{fontSize:"12px",color:T.gold,cursor:"pointer"}}>Forgot password?</span>
+              </div>
+            )}
+            {!isLogin && (
+              <label style={{display:"flex",alignItems:"flex-start",gap:"7px",cursor:"pointer",fontSize:"12px",color:T.t2,lineHeight:1.55}}>
+                <input type="checkbox" style={{accentColor:T.gold,marginTop:"2px",flexShrink:0}}/>
+                I agree to Terms, Privacy Policy, risk disclosure. I consent to email notifications.
+              </label>
+            )}
+            <Btn variant="gold" style={{width:"100%",padding:"13px",fontSize:"14px"}} onClick={handleSubmit}>
+              {loading ? <span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>⟳</span> : (isLogin ? "Sign In →" : "Create Free Account →")}
+            </Btn>
+            <div style={{textAlign:"center",fontSize:"12px",color:T.t2}}>
+              {isLogin?"No account? ":"Have an account? "}
+              <span style={{color:T.gold,cursor:"pointer",fontWeight:600}} onClick={()=>setPage(isLogin?"register":"login")}>{isLogin?"Create free →":"Sign in →"}</span>
+            </div>
+            <div style={{textAlign:"center"}}><span style={{fontSize:"11px",color:T.t3,cursor:"pointer"}} onClick={()=>setPage("landing")}>← Back to home</span></div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ─── LIVE CHAT PAGE ───────────────────────────────────────────────────────────
+const ChatPage = ({ setPage }) => {
+  const [messages, setMessages] = useState([
+    { from:"agent", text:"👋 Welcome to NexusVault Live Support! I'm your AI assistant backed by a human team. How can I help you today?" },
+    { from:"agent", text:"I can assist with deposits, withdrawals, investment plans, KYC, wallet management, and account security." },
+  ]);
+  const [input, setInput] = useState("");
+  const [typing, setTyping] = useState(false);
+  const endRef = useRef(null);
+
+  const REPLIES = {
+    "deposit": "To deposit: Dashboard → Deposit → select coin → copy your wallet address → send crypto → submit TXID. You'll receive an instant email confirmation on-chain!",
+    "withdraw": "Dashboard → Withdraw → select coin → enter wallet address & amount → submit 2FA code. Processed in 24–48h with email updates at each stage.",
+    "roi": "ROI is credited every 7 days from your investment activation date. You'll see a countdown timer in your dashboard and receive an email the moment it's credited!",
+    "plan": "4 plans: Starter ($500 = 50%), Growth ($5K = 75%), Elite ($25K = 100%), VIP Pro ($100K = 150%). All include instant deposit confirmation and 10% referral bonus.",
+    "kyc": "Go to Dashboard → KYC. Upload your government ID and a selfie. Level 2 approval unlocks $50K/month limit. Usually reviewed within 24 hours.",
+    "referral": "Earn 10% on every deposit your referrals make. Find your unique referral link in Dashboard → Referral. Commissions credited instantly!",
+  };
+
+  const send = () => {
+    const text = input.trim();
+    if(!text) return;
+    setInput("");
+    setMessages(m=>[...m,{from:"user",text}]);
+    setTyping(true);
+    const key = Object.keys(REPLIES).find(k=>text.toLowerCase().includes(k));
+    setTimeout(()=>{
+      setTyping(false);
+      setMessages(m=>[...m,{from:"agent",text: key?REPLIES[key]:"Thank you! A live agent will respond within 30 seconds. You can also reach us on WhatsApp or Telegram for instant support."}]);
+    },1200);
+  };
+
+  useEffect(()=>endRef.current?.scrollIntoView({behavior:"smooth"}), [messages,typing]);
+
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px",background:T.bg}}>
+      <div style={{width:"100%",maxWidth:480}}>
+        <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"18px"}}>
+          <div style={{cursor:"pointer"}} onClick={()=>setPage("landing")}>
+            <div style={{display:"inline-flex",alignItems:"center",gap:"8px"}}>
+              <div style={{width:28,height:28,borderRadius:"8px",background:`linear-gradient(135deg,${T.gold},${T.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"14px",color:"#000"}}>N</div>
+              <span style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"15px",fontWeight:900,color:T.t1}}>NexusVault Support</span>
+            </div>
+          </div>
+          <Badge color={T.green} style={{marginLeft:"auto"}}><LiveDot/> Online</Badge>
+        </div>
+
+        <Card accent="rgba(15,217,138,.18)" style={{overflow:"hidden",padding:0}}>
+          {/* Header */}
+          <div style={{background:`linear-gradient(135deg,rgba(240,165,0,.08),rgba(79,158,255,.05))`,padding:"14px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:"11px"}}>
+            <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(15,217,138,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px"}}>🤖</div>
+            <div>
+              <div style={{fontWeight:700,fontSize:"13px"}}>NexusVault AI + Live Agents</div>
+              <div style={{fontSize:"11px",color:T.green}}><LiveDot/> Online · Avg 30 sec response</div>
+            </div>
+            <div style={{marginLeft:"auto",textAlign:"right"}}>
+              <div style={{fontSize:"10px",color:T.t3}}>Also on</div>
+              <div style={{display:"flex",gap:"5px",marginTop:"3px"}}>
+                <span style={{fontSize:"16px",cursor:"pointer"}}>💬</span>
+                <span style={{fontSize:"16px",cursor:"pointer"}}>✈️</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div style={{padding:"16px",display:"flex",flexDirection:"column",gap:"10px",minHeight:"320px",maxHeight:"400px",overflowY:"auto"}}>
+            {messages.map((m,i)=>(
+              <div key={i} style={{
+                alignSelf:m.from==="user"?"flex-end":"flex-start",
+                background:m.from==="user"?"rgba(240,165,0,.12)":"var(--card,rgba(255,255,255,.04))",
+                border:`1px solid ${m.from==="user"?"rgba(240,165,0,.22)":T.border}`,
+                borderRadius:m.from==="user"?"14px 14px 4px 14px":"14px 14px 14px 4px",
+                padding:"10px 14px",fontSize:"13px",maxWidth:"80%",
+              }}>{m.text}</div>
+            ))}
+            {typing && <div style={{alignSelf:"flex-start",fontSize:"12px",color:T.t3,fontStyle:"italic"}}>Support agent is typing...</div>}
+            <div ref={endRef}/>
+          </div>
+
+          {/* Quick replies */}
+          <div style={{padding:"0 16px 12px",display:"flex",flexWrap:"wrap",gap:"6px"}}>
+            {["How do I deposit?","When do I get paid?","Withdrawal process?","View plans","KYC help"].map(q=>(
+              <button key={q} onClick={()=>setInput(q)} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:"20px",padding:"6px 12px",fontSize:"12px",cursor:"pointer",color:T.t1,fontFamily:"inherit",transition:"all .18s"}}
+                onMouseEnter={e=>e.target.style.borderColor="rgba(240,165,0,.35)"} onMouseLeave={e=>e.target.style.borderColor=T.border}>{q}</button>
+            ))}
+          </div>
+
+          {/* Input */}
+          <div style={{padding:"12px 14px",borderTop:`1px solid ${T.border}`,display:"flex",gap:"8px"}}>
+            <input value={input} onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&send()}
+              placeholder="Type a message..."
+              style={{flex:1,background:"rgba(255,255,255,.04)",border:`1px solid ${T.border}`,borderRadius:"10px",color:T.t1,padding:"10px 12px",fontSize:"13px",fontFamily:"'Outfit',sans-serif",outline:"none"}}/>
+            <Btn variant="gold" size="sm" onClick={send}>Send</Btn>
+          </div>
+        </Card>
+        <div style={{textAlign:"center",marginTop:"12px"}}><span style={{fontSize:"11px",color:T.t3,cursor:"pointer"}} onClick={()=>setPage("landing")}>← Back to home</span></div>
+      </div>
+    </div>
+  );
+};
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+const Dashboard = ({ setPage }) => {
+  const [activeView, setActiveView] = useState("overview");
+  const [selectedCoin, setSelectedCoin] = useState("BTC");
+
+  const navItems = [
+    { id:"overview",  label:"Overview",           icon:"📊", section:"main" },
+    { id:"wallet",    label:"Wallet Manager",      icon:"👛", section:"main" },
+    { id:"deposit",   label:"Deposit",             icon:"📥", section:"main" },
+    { id:"withdraw",  label:"Withdraw",            icon:"📤", section:"main" },
+    { id:"invest",    label:"Invest",              icon:"📈", section:"main" },
+    { id:"dep-hist",  label:"Deposit History",     icon:"📋", section:"history" },
+    { id:"wit-hist",  label:"Withdrawal History",  icon:"📑", section:"history" },
+    { id:"referral",  label:"Referral Earnings",   icon:"🤝", section:"account" },
+    { id:"kyc",       label:"KYC Verification",    icon:"🪪", section:"account" },
+    { id:"notif",     label:"Notifications",       icon:"🔔", section:"account", badge:5 },
+    { id:"email-set", label:"Email Settings",      icon:"📧", section:"account" },
+  ];
+
+  const CHART_DATA = [28000,30500,29200,33000,35800,34200,38000,40100,43000,45200,44100,48750];
+  const maxD = Math.max(...CHART_DATA), minD = Math.min(...CHART_DATA), rngD = maxD-minD;
+
+  const renderView = () => {
+    switch(activeView) {
+      case "overview": return <DashOverview setActiveView={setActiveView} chartData={CHART_DATA} maxD={maxD} minD={minD} rngD={rngD}/>;
+      case "wallet":   return <DashWallet selectedCoin={selectedCoin} setSelectedCoin={setSelectedCoin}/>;
+      case "deposit":  return <DashDeposit selectedCoin={selectedCoin} setSelectedCoin={setSelectedCoin}/>;
+      case "withdraw": return <DashWithdraw/>;
+      case "invest":   return <DashInvest setActiveView={setActiveView}/>;
+      case "dep-hist": return <DashDepHistory/>;
+      case "wit-hist": return <DashWitHistory/>;
+      case "referral": return <DashReferral/>;
+      case "kyc":      return <DashKYC/>;
+      case "notif":    return <DashNotif/>;
+      case "email-set":return <DashEmailSettings/>;
+      default:         return <div style={{color:T.t2,padding:"20px"}}>Coming soon</div>;
+    }
+  };
+
+  const sectionLabel = (id) => {
+    const sections = {main:"MAIN",history:"HISTORY",account:"ACCOUNT"};
+    return sections[id];
+  };
+
+  return (
+    <div style={{display:"flex",minHeight:"100vh"}}>
+      {/* Sidebar */}
+      <div style={{width:"228px",background:T.bg2,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",flexShrink:0}}>
+        <div style={{padding:"16px 18px 13px",borderBottom:`1px solid ${T.border}`,cursor:"pointer"}} onClick={()=>setPage("landing")}>
+          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+            <div style={{width:26,height:26,borderRadius:"8px",background:`linear-gradient(135deg,${T.gold},${T.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"13px",color:"#000"}}>N</div>
+            <span style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"14px",fontWeight:900,color:T.t1}}>Nexus<GoldText>Vault</GoldText></span>
+          </div>
+        </div>
+
+        <div style={{flex:1,padding:"8px 0",overflowY:"auto"}}>
+          {["main","history","account"].map(sec=>{
+            const items = navItems.filter(i=>i.section===sec);
+            return (
+              <div key={sec}>
+                <div style={{padding:"5px 18px",fontSize:"10px",fontWeight:700,letterSpacing:"1.8px",textTransform:"uppercase",color:T.t3,marginTop:"10px"}}>{sectionLabel(sec)}</div>
+                {items.map(item=>(
+                  <button key={item.id} onClick={()=>setActiveView(item.id)}
+                    style={{display:"flex",alignItems:"center",gap:"10px",padding:"10px 18px",cursor:"pointer",fontSize:"13px",fontWeight:500,color:activeView===item.id?T.gold:T.t2,border:"none",background:activeView===item.id?"rgba(240,165,0,.07)":"transparent",width:"100%",textAlign:"left",fontFamily:"'Outfit',sans-serif",transition:"all .18s",borderLeft:`3px solid ${activeView===item.id?T.gold:"transparent"}`}}>
+                    <span>{item.icon}</span>
+                    <span style={{flex:1}}>{item.label}</span>
+                    {item.badge && <span style={{background:T.red,color:"#fff",fontSize:"9px",fontWeight:700,padding:"1px 6px",borderRadius:"10px"}}>{item.badge}</span>}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{padding:"13px 18px",borderTop:`1px solid ${T.border}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:"9px",marginBottom:"10px"}}>
+            <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${T.gold},${T.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"11px",color:"#000",flexShrink:0}}>JI</div>
+            <div><div style={{fontSize:"12px",fontWeight:600}}>John Investor</div><div style={{fontSize:"10px",color:T.t3}}>KYC Pending</div></div>
+          </div>
+          {[["💬 Live Chat",()=>setPage("chat")],["🏠 Home",()=>setPage("landing")],["🚪 Logout",()=>setPage("landing")]].map(([l,cb],i)=>(
+            <button key={l} onClick={cb} style={{display:"flex",alignItems:"center",gap:"8px",padding:"7px 0",cursor:"pointer",fontSize:"12px",fontWeight:500,color:i===2?T.red:T.t2,border:"none",background:"transparent",width:"100%",textAlign:"left",fontFamily:"inherit",transition:"color .18s"}}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+        <div style={{background:T.bg2,borderBottom:`1px solid ${T.border}`,padding:"0 24px",height:"60px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+          <div>
+            <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"14px"}}>{navItems.find(i=>i.id===activeView)?.label||"Dashboard"}</div>
+            <div style={{fontSize:"11px",color:T.t2}}>NXV-ID: JI-7742 · April 2024</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+            <Badge color={T.green}><LiveDot/> Markets Live</Badge>
+            <Btn variant="gold" size="sm" onClick={()=>setActiveView("deposit")}>+ Deposit</Btn>
+            <Btn variant="outline" size="sm" onClick={()=>setPage("chat")}>💬 Chat</Btn>
+          </div>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"24px",background:"rgba(4,4,12,1)"}}>{renderView()}</div>
+      </div>
+    </div>
+  );
+};
+
+// ─── DASHBOARD VIEWS ──────────────────────────────────────────────────────────
+const StatCard = ({ label, value, change, changeColor=T.green, icon }) => (
+  <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:"16px",padding:"20px",transition:"border-color .2s"}}
+    onMouseEnter={e=>e.currentTarget.style.borderColor=T.borderH} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+      <div>
+        <div style={{fontSize:"10px",color:T.t2,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"4px"}}>{label}</div>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"26px",lineHeight:1.1,margin:"5px 0 3px"}}>{value}</div>
+        {change && <div style={{fontSize:"11px",color:changeColor,marginTop:"3px"}}>{change}</div>}
+      </div>
+      <div style={{fontSize:"22px"}}>{icon}</div>
+    </div>
+  </div>
+);
+
+const TxRow = ({ title, sub, date, amount, color=T.green }) => (
+  <div style={{display:"flex",alignItems:"center",padding:"11px 14px",borderBottom:`1px solid rgba(255,255,255,.04)`,fontSize:"13px",transition:"background .14s"}}
+    onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.02)"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+    <div style={{flex:1}}>
+      <div style={{fontWeight:500}}>{title}</div>
+      <div style={{fontSize:"11px",color:T.t3}}>{sub} · {date}</div>
+    </div>
+    <span style={{color,fontWeight:700,fontSize:"13px"}}>{amount}</span>
+  </div>
+);
+
+const DashOverview = ({ setActiveView, chartData, maxD, minD, rngD }) => (
+  <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(168px,1fr))",gap:"14px",marginBottom:"18px"}}>
+      <StatCard label="Total Balance"       value="$48,750"  change="+$9,250 this week" icon="💰"/>
+      <StatCard label="Active Investments"  value="$25,500"  change="2 plans running"   icon="📈" changeColor={T.gold}/>
+      <StatCard label="Total Earned"        value="$19,250"  change="Lifetime ROI"      icon="🏆" changeColor={T.blue}/>
+      <StatCard label="Referral Earnings"   value="$3,420"   change="12 referrals"      icon="🤝" changeColor={T.purple}/>
+      <StatCard label="Pending Withdrawal"  value="$0"       change="No pending"        icon="⏳" changeColor={T.t2}/>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:"16px",marginBottom:"16px"}}>
+      <Card>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
+          <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px"}}>Portfolio Performance — 30 Days</div>
+          <Badge color={T.gold}>+23.4% this month</Badge>
+        </div>
+        {/* Chart */}
+        <div style={{height:"120px",display:"flex",alignItems:"flex-end",gap:"5px",position:"relative"}}>
+          {/* Y-axis lines */}
+          {[0,33,66,100].map(p=>(
+            <div key={p} style={{position:"absolute",left:0,right:0,bottom:`${p}%`,borderTop:`1px dashed rgba(255,255,255,.04)`,pointerEvents:"none"}}/>
+          ))}
+          {chartData.map((v,i)=>(
+            <div key={i} style={{flex:1,height:`${Math.round(((v-minD)/rngD)*100)}%`,background:`linear-gradient(180deg,rgba(240,165,0,.5),rgba(240,165,0,.1))`,borderRadius:"3px 3px 0 0",minWidth:"8px",transition:"height .3s"}}/>
+          ))}
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:"10px",color:T.t3,marginTop:"6px"}}>
+          {["W1","","W3","","W5","","W7","","W9","","W11",""].map((l,i)=><span key={i}>{l}</span>)}
+        </div>
+      </Card>
+
+      <Card>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"14px"}}>Active Plans</div>
+        <div style={{marginBottom:"14px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"5px"}}>
+            <span style={{color:T.t2}}>Growth Plan</span><span style={{color:T.gold,fontWeight:700}}>75% · Wk 3/4</span>
+          </div>
+          <div style={{height:"5px",borderRadius:"3px",background:"rgba(255,255,255,.06)",overflow:"hidden"}}>
+            <div style={{height:"100%",width:"75%",borderRadius:"3px",background:`linear-gradient(90deg,${T.gold},${T.goldL})`}}/>
+          </div>
+          <div style={{fontSize:"10px",color:T.t3,marginTop:"3px"}}>$25,000 · payout in 2d</div>
+        </div>
+        <div style={{marginBottom:"18px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"5px"}}>
+            <span style={{color:T.t2}}>Starter Plan</span><span style={{color:T.blue,fontWeight:700}}>50% · Wk 2/4</span>
+          </div>
+          <div style={{height:"5px",borderRadius:"3px",background:"rgba(255,255,255,.06)",overflow:"hidden"}}>
+            <div style={{height:"100%",width:"50%",borderRadius:"3px",background:`linear-gradient(90deg,${T.blue},#1A6FD4)`}}/>
+          </div>
+          <div style={{fontSize:"10px",color:T.t3,marginTop:"3px"}}>$500 · payout in 5d</div>
+        </div>
+        <div style={{background:"rgba(240,165,0,.07)",border:"1px solid rgba(240,165,0,.18)",borderRadius:"10px",padding:"11px"}}>
+          <div style={{fontSize:"11px",color:T.t2,marginBottom:"2px"}}>Next combined payout</div>
+          <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"22px",color:T.gold}}>$19,125</div>
+          <div style={{fontSize:"10px",color:T.t3,marginTop:"2px"}}>in 2d 14h 22m</div>
+        </div>
+      </Card>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px"}}>
+      <Card>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"12px"}}>Recent Transactions</div>
+        <div style={{borderRadius:"10px",overflow:"hidden",border:`1px solid ${T.border}`}}>
+          <TxRow title="Weekly ROI Paid"     sub="Growth Plan"   date="Apr 14" amount="+$18,750" color={T.green}/>
+          <TxRow title="BTC Deposit Confirmed" sub="0x3a4b...9f2e" date="Apr 10" amount="+$25,000" color={T.green}/>
+          <TxRow title="Withdrawal Processed" sub="bc1q...mdq"    date="Apr 09" amount="-$5,000"  color={T.red}/>
+          <TxRow title="Referral Commission"  sub="3 new refs"    date="Apr 08" amount="+$780"    color={T.green}/>
+        </div>
+      </Card>
+      <Card>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"12px"}}>Quick Actions</div>
+        <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+          {[["📥 Deposit Crypto","deposit",T.gold],["👛 Manage Wallets","wallet","outline"],["📤 Withdraw Funds","withdraw","outline"],["🔔 Notifications (5)","notif","outline"]].map(([l,v,variant])=>(
+            <Btn key={l} variant={variant==="outline"?"outline":"gold"} style={{width:"100%",padding:"11px",fontSize:"12px",justifyContent:"flex-start",gap:"8px"}} onClick={()=>setActiveView(v)}>{l}</Btn>
+          ))}
+          <Btn variant="green" style={{width:"100%",padding:"11px",fontSize:"12px",justifyContent:"flex-start",gap:"8px"}}>💬 Live Chat Support</Btn>
+        </div>
+      </Card>
+    </div>
+  </div>
+);
+
+const DashWallet = ({ selectedCoin, setSelectedCoin }) => {
+  const coins = [
+    { n:"Bitcoin",  s:"BTC", sym:"₿",  bal:"0.58420", usd:"$39,320", c:T.gold,   addr:WALLETS.BTC,  net:"BTC Mainnet" },
+    { n:"Ethereum", s:"ETH", sym:"Ξ",  bal:"2.6450",  usd:"$9,370",  c:T.blue,   addr:WALLETS.ETH,  net:"ERC-20"      },
+    { n:"Tether",   s:"USDT",sym:"₮",  bal:"60.00",   usd:"$60.00",  c:T.green,  addr:WALLETS.USDT, net:"TRC-20"      },
+    { n:"BNB",      s:"BNB", sym:"B",  bal:"0.00",    usd:"$0.00",   c:T.purple, addr:WALLETS.BNB,  net:"BSC"         },
+  ];
+  return (
+    <div>
+      <Card accent="rgba(240,165,0,.18)" style={{marginBottom:"18px",background:`linear-gradient(135deg,rgba(240,165,0,.08),rgba(79,158,255,.05))`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"18px"}}>
+          <div>
+            <div style={{fontSize:"11px",color:T.t2,marginBottom:"3px"}}>Total Portfolio Value</div>
+            <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"40px",fontWeight:900}}>$48,750.00</div>
+            <div style={{fontSize:"12px",color:T.green,marginTop:"3px"}}>▲ +$9,250 this week</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"6px",alignItems:"flex-end"}}>
+            <Badge color={T.green}><LiveDot/> Active</Badge>
+            <Badge color={T.gold}>4 Chains</Badge>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"9px"}}>
+          {coins.map(co=>(
+            <div key={co.s} style={{background:"rgba(255,255,255,.06)",border:`1px solid ${co.c}22`,borderRadius:"10px",padding:"11px",textAlign:"center",cursor:"pointer",transition:"border-color .2s"}}
+              onClick={()=>setSelectedCoin(co.s)}>
+              <div style={{fontSize:"17px",fontWeight:700,color:co.c,marginBottom:"3px"}}>{co.sym}</div>
+              <div style={{fontSize:"12px",fontWeight:700}}>{co.usd}</div>
+              <div style={{fontSize:"10px",color:T.t3,marginTop:"2px"}}>{co.bal}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px"}}>
+        {coins.map(co=>(
+          <Card key={co.s} accent={`${co.c}22`}>
+            <div style={{display:"flex",alignItems:"center",gap:"11px",marginBottom:"13px"}}>
+              <div style={{width:38,height:38,borderRadius:"10px",background:`${co.c}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"17px",fontWeight:700,color:co.c,flexShrink:0}}>{co.sym}</div>
+              <div><div style={{fontWeight:700,fontSize:"13px"}}>{co.n}</div><div style={{fontSize:"11px",color:T.t2}}>{co.net}</div></div>
+              <div style={{marginLeft:"auto",textAlign:"right"}}><div style={{fontWeight:700,fontSize:"13px"}}>{co.usd}</div><div style={{fontSize:"10px",color:T.t3}}>{co.bal} {co.s}</div></div>
+            </div>
+            <div style={{fontSize:"10px",fontWeight:700,color:T.t3,letterSpacing:".5px",marginBottom:"5px"}}>DEPOSIT ADDRESS</div>
+            <div style={{display:"flex",gap:"6px",alignItems:"center",marginBottom:"11px"}}>
+              <div style={{flex:1,background:`${co.c}08`,border:`1px solid ${co.c}22`,borderRadius:"7px",padding:"8px 10px",fontFamily:"monospace",fontSize:"10px",color:co.c,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{co.addr}</div>
+              <button onClick={()=>navigator.clipboard?.writeText(co.addr)} style={{background:"rgba(255,255,255,.06)",border:`1px solid ${T.border}`,borderRadius:"7px",padding:"7px 9px",cursor:"pointer",color:T.t2,fontSize:"11px",fontFamily:"inherit",flexShrink:0}}>📋</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"7px"}}>
+              <Btn variant="outline" size="sm" style={{borderColor:`${co.c}44`,color:co.c,fontSize:"11px"}}>Deposit</Btn>
+              <Btn variant="ghost" size="sm" style={{fontSize:"11px"}}>Withdraw</Btn>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const DashDeposit = ({ selectedCoin, setSelectedCoin }) => (
+  <div style={{maxWidth:"660px"}}>
+    <Card style={{marginBottom:"16px"}}>
+      <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"13px"}}>Select Cryptocurrency</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"9px",marginBottom:"18px"}}>
+        {["BTC","ETH","USDT","BNB"].map((c,i)=>(
+          <div key={c} onClick={()=>setSelectedCoin(c)} style={{border:`1px solid ${selectedCoin===c?"rgba(240,165,0,.5)":T.border}`,borderRadius:"10px",padding:"12px",textAlign:"center",cursor:"pointer",transition:"all .2s",background:selectedCoin===c?"rgba(240,165,0,.08)":"transparent"}}>
+            <div style={{fontSize:"18px",marginBottom:"4px"}}>{["₿","Ξ","₮","B"][i]}</div>
+            <div style={{fontWeight:700,fontSize:"12px"}}>{c}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:"10px",fontWeight:700,color:T.t2,letterSpacing:".5px",marginBottom:"6px",textTransform:"uppercase"}}>Your {selectedCoin} Deposit Address</div>
+      <div style={{display:"flex",gap:"7px",alignItems:"center",marginBottom:"13px"}}>
+        <div style={{flex:1,background:"rgba(240,165,0,.04)",border:"1px solid rgba(240,165,0,.2)",borderRadius:"10px",padding:"10px 12px",fontFamily:"monospace",fontSize:"11px",color:T.gold,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{WALLETS[selectedCoin]}</div>
+        <button onClick={()=>navigator.clipboard?.writeText(WALLETS[selectedCoin])} style={{background:"rgba(255,255,255,.06)",border:`1px solid ${T.border}`,borderRadius:"10px",padding:"9px 12px",cursor:"pointer",color:T.t2,fontSize:"12px",fontFamily:"inherit",whiteSpace:"nowrap"}}>📋 Copy</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px",marginBottom:"13px"}}>
+        {[["MIN DEPOSIT","$500",T.gold],["CONFIRMATION","Instant",T.green],["EMAIL ALERT","On Confirm",T.blue]].map(([l,v,c])=>(
+          <div key={l} style={{background:`${c}05`,border:`1px solid ${c}15`,borderRadius:"10px",padding:"10px",textAlign:"center"}}>
+            <div style={{fontSize:"10px",color:T.t2,marginBottom:"2px"}}>{l}</div>
+            <div style={{fontWeight:700,fontSize:"14px",color:c}}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{background:"rgba(255,180,0,.05)",border:"1px solid rgba(255,180,0,.18)",borderRadius:"10px",padding:"10px 13px",fontSize:"12px",color:"#FFC145"}}>
+        ⚠️ Only send {selectedCoin} to this address. Sending another coin will result in permanent loss of funds. Email notification sent on confirmation.
+      </div>
+    </Card>
+    <Card>
+      <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"13px"}}>Manual Deposit Confirmation</div>
+      <div style={{display:"flex",flexDirection:"column",gap:"11px"}}>
+        <Input label="TXID / Transaction Hash" type="text" placeholder="Paste blockchain transaction hash"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"11px"}}>
+          <Input label="Amount (USD)" type="number" placeholder="e.g. 5000"/>
+          <Select label="Investment Plan">
+            <option>Starter — 50% ROI</option>
+            <option>Growth — 75% ROI</option>
+            <option>Elite — 100% ROI</option>
+            <option>VIP Pro — 150% ROI</option>
+          </Select>
+        </div>
+        <Btn variant="gold" style={{width:"100%",padding:"12px",fontSize:"14px"}}>Submit Deposit</Btn>
+      </div>
+    </Card>
+  </div>
+);
+
+const DashWithdraw = () => (
+  <div style={{maxWidth:"600px"}}>
+    <Card accent="rgba(240,165,0,.14)" style={{marginBottom:"16px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:"11px",color:T.t2,marginBottom:"3px"}}>Available Balance</div>
+          <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"36px",fontWeight:900,color:T.gold}}>$48,750.00</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:"11px",color:T.t2,marginBottom:"3px"}}>Min. Withdrawal</div>
+          <div style={{fontWeight:700,fontSize:"16px"}}>$100</div>
+        </div>
+      </div>
+    </Card>
+    <Card>
+      <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"14px"}}>Request Withdrawal</div>
+      <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+        <Select label="Withdraw To"><option>Bitcoin (BTC)</option><option>Ethereum (ETH)</option><option>Tether USDT (TRC-20)</option><option>BNB (BSC)</option></Select>
+        <Input label="Receiving Wallet Address" type="text" placeholder="Enter wallet address"/>
+        <div>
+          <div style={{fontSize:"10px",fontWeight:700,color:T.t2,letterSpacing:".5px",marginBottom:"5px",textTransform:"uppercase"}}>Amount (USD)</div>
+          <div style={{display:"flex",gap:"7px"}}>
+            <input type="number" placeholder="Min $100" style={{flex:1,background:"rgba(255,255,255,.04)",border:`1px solid ${T.border}`,borderRadius:"10px",color:T.t1,padding:"11px 14px",fontSize:"13px",fontFamily:"'Outfit',sans-serif",outline:"none"}}/>
+            <Btn variant="outline" size="sm">MAX</Btn>
+          </div>
+          <div style={{fontSize:"10px",color:T.t3,marginTop:"4px"}}>Fee: 1.5% · 24–48h · Email updates at each stage</div>
+        </div>
+        <Input label="2FA Code" type="text" placeholder="6-digit authenticator code"/>
+        <Btn variant="gold" style={{width:"100%",padding:"12px",fontSize:"14px"}}>Submit Withdrawal Request →</Btn>
+      </div>
+    </Card>
+  </div>
+);
+
+const DashInvest = ({ setActiveView }) => (
+  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(215px,1fr))",gap:"14px"}}>
+    {PLANS.map(p=>(
+      <Card key={p.id} accent={`${p.color}22`} style={{position:"relative"}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:"2px",background:p.color,borderRadius:"16px 16px 0 0"}}/>
+        <div style={{fontSize:"26px",marginBottom:"9px"}}>{p.icon}</div>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"42px",fontWeight:900,color:p.color,lineHeight:1}}>{p.roi}%</div>
+        <div style={{fontWeight:700,fontSize:"14px",marginBottom:"13px"}}>{p.name}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:"8px",fontSize:"12px",marginBottom:"16px"}}>
+          {[["Weekly ROI",`${p.roi}%`,p.color],["Min",`$${p.min.toLocaleString()}`,T.t1],["Max",p.max?`$${p.max.toLocaleString()}`:"Unlimited",T.t1]].map(([k,v,c])=>(
+            <div key={k} style={{display:"flex",justifyContent:"space-between"}}>
+              <span style={{color:T.t2}}>{k}</span><strong style={{color:c}}>{v}</strong>
+            </div>
+          ))}
+        </div>
+        <Btn variant="outline" size="sm" style={{width:"100%",borderColor:`${p.color}44`,color:p.color,fontSize:"11px",fontWeight:700}} onClick={()=>setActiveView("deposit")}>Activate →</Btn>
+      </Card>
+    ))}
+  </div>
+);
+
+const HistoryTable = ({ columns, rows, colWidths }) => (
+  <Card style={{overflow:"hidden",padding:0}}>
+    <div style={{display:"flex",alignItems:"center",padding:"10px 14px",background:"rgba(255,255,255,.025)",borderBottom:`1px solid ${T.border}`}}>
+      {columns.map((c,i)=><div key={c} style={{fontSize:"10px",fontWeight:700,color:T.t3,letterSpacing:".8px",textTransform:"uppercase",flex:colWidths?colWidths[i]||1:1}}>{c}</div>)}
+    </div>
+    {rows.map((r,i)=>(
+      <div key={i} style={{display:"flex",alignItems:"center",padding:"11px 14px",borderBottom:"1px solid rgba(255,255,255,.04)",fontSize:"13px",transition:"background .14s"}}
+        onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.02)"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+        {r}
+      </div>
+    ))}
+  </Card>
+);
+
+const DashDepHistory = () => {
+  const data = [
+    {id:"DEP-012",c:"BTC",a:"$25,000",p:"Growth",  s:"Confirmed",d:"Apr 10"},
+    {id:"DEP-011",c:"ETH",a:"$5,000", p:"Starter", s:"Confirmed",d:"Mar 28"},
+    {id:"DEP-010",c:"USDT",a:"$500",  p:"Starter", s:"Confirmed",d:"Mar 12"},
+    {id:"DEP-009",c:"BNB",a:"$10,000",p:"Growth",  s:"Confirmed",d:"Feb 24"},
+    {id:"DEP-008",c:"BTC",a:"$500",   p:"Starter", s:"Pending",  d:"Feb 10"},
+  ];
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:"12px",marginBottom:"16px"}}>
+        <StatCard label="Total Deposited" value="$41,000" change="5 confirmed" icon="📥"/>
+        <StatCard label="Confirmed" value="4" change="Processed" icon="✅"/>
+        <StatCard label="Pending" value="1" change="Awaiting" icon="⏳" changeColor={T.gold}/>
+      </div>
+      <HistoryTable
+        columns={["ID","Coin","Amount","Plan","Date","Status"]}
+        colWidths={[1,.8,1,1,.9,.9]}
+        rows={data.map(r=>{
+          const c = r.s==="Confirmed"?T.green:T.gold;
+          return [
+            <div key="id" style={{flex:1,fontSize:"10px",color:T.t3}}>{r.id}</div>,
+            <div key="c" style={{flex:.8}}><Badge color={T.gold} style={{fontSize:"9px"}}>{r.c}</Badge></div>,
+            <div key="a" style={{flex:1,fontWeight:700,color:T.green}}>{r.a}</div>,
+            <div key="p" style={{flex:1,color:T.t2}}>{r.p}</div>,
+            <div key="d" style={{flex:.9,color:T.t2}}>{r.d}</div>,
+            <div key="s" style={{flex:.9}}><span style={{fontSize:"10px",fontWeight:700,color:c,background:`${c}18`,padding:"2px 8px",borderRadius:"20px"}}>{r.s}</span></div>,
+          ];
+        })}
+      />
+    </div>
+  );
+};
+
+const DashWitHistory = () => {
+  const data = [
+    {id:"WIT-008",c:"BTC", a:"$5,000", w:"bc1q...mdq",  s:"Approved",d:"Apr 09"},
+    {id:"WIT-007",c:"ETH", a:"$2,500", w:"0x3f4...8a2b", s:"Approved",d:"Mar 31"},
+    {id:"WIT-006",c:"USDT",a:"$1,200", w:"TKm8...9p",   s:"Approved",d:"Mar 18"},
+    {id:"WIT-005",c:"ETH", a:"$12,000",w:"0x3f4...8a2b", s:"Pending", d:"Apr 11"},
+  ];
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:"12px",marginBottom:"16px"}}>
+        <StatCard label="Total Withdrawn" value="$20,700" change="3 approved" icon="📤" changeColor={T.red}/>
+        <StatCard label="Approved" value="3" change="Sent to wallet" icon="✅"/>
+        <StatCard label="Pending" value="1" change="Under review" icon="⏳" changeColor={T.gold}/>
+      </div>
+      <HistoryTable
+        columns={["ID","Coin","Amount","Wallet","Date","Status"]}
+        colWidths={[1,.8,1,1.3,.9,.9]}
+        rows={data.map(r=>{
+          const c = r.s==="Approved"?T.green:T.gold;
+          return [
+            <div key="id" style={{flex:1,fontSize:"10px",color:T.t3}}>{r.id}</div>,
+            <div key="c" style={{flex:.8}}><Badge color={T.blue} style={{fontSize:"9px"}}>{r.c}</Badge></div>,
+            <div key="a" style={{flex:1,fontWeight:700,color:T.red}}>-{r.a}</div>,
+            <div key="w" style={{flex:1.3,fontFamily:"monospace",fontSize:"10px",color:T.t3}}>{r.w}</div>,
+            <div key="d" style={{flex:.9,color:T.t2}}>{r.d}</div>,
+            <div key="s" style={{flex:.9}}><span style={{fontSize:"10px",fontWeight:700,color:c,background:`${c}18`,padding:"2px 8px",borderRadius:"20px"}}>{r.s}</span></div>,
+          ];
+        })}
+      />
+    </div>
+  );
+};
+
+const DashReferral = () => (
+  <div style={{maxWidth:"720px"}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:"13px",marginBottom:"18px"}}>
+      <StatCard label="Total Referrals" value="12 Users" change="All active" icon="👥" changeColor={T.blue}/>
+      <StatCard label="Total Earned" value="$3,420" change="Lifetime" icon="💎" changeColor={T.gold}/>
+      <StatCard label="This Month" value="$1,240" change="April 2024" icon="📅"/>
+      <StatCard label="Commission Rate" value="10%" change="Per deposit" icon="%" changeColor={T.purple}/>
+    </div>
+    <Card accent="rgba(240,165,0,.16)" style={{marginBottom:"16px"}}>
+      <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"11px"}}>Your Referral Link</div>
+      <div style={{display:"flex",gap:"7px",marginBottom:"10px"}}>
+        <div style={{flex:1,background:"rgba(240,165,0,.04)",border:"1px solid rgba(240,165,0,.18)",borderRadius:"10px",padding:"10px 12px",fontSize:"13px",color:T.gold}}>https://nexusvault.io/ref/JI-NV7742</div>
+        <button style={{background:"rgba(255,255,255,.06)",border:`1px solid ${T.border}`,borderRadius:"10px",padding:"9px 12px",cursor:"pointer",color:T.t2,fontSize:"12px",fontFamily:"inherit",whiteSpace:"nowrap"}}>📋 Copy</button>
+      </div>
+      <div style={{fontSize:"12px",color:T.t2,lineHeight:1.65}}>Earn <strong style={{color:T.gold}}>10% commission</strong> on every deposit. Credited instantly. Email notification sent for each new commission.</div>
+    </Card>
+    <Card>
+      <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"13px"}}>Your Referrals</div>
+      {[["Robert C.","$5,000","$500","Apr 10"],["Sarah M.","$25,000","$2,500","Apr 04"],["Ahmed H.","$500","$50","Mar 28"],["Maria S.","$3,200","$320","Mar 12"],["Yuki T.","$500","$50","Mar 20"]].map(([n,d,e,dt])=>(
+        <div key={n} style={{display:"flex",alignItems:"center",padding:"11px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+          <div style={{display:"flex",gap:"9px",alignItems:"center",flex:1.2}}>
+            <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${T.gold},${T.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"10px",color:"#000",flexShrink:0}}>{n.split(" ").map(x=>x[0]).join("")}</div>
+            <span style={{fontWeight:600,fontSize:"12px"}}>{n}</span>
+          </div>
+          <span style={{flex:1,fontSize:"12px"}}>{d}</span>
+          <span style={{flex:1,color:T.green,fontWeight:700,fontSize:"12px"}}>{e}</span>
+          <span style={{flex:.8,color:T.t3,fontSize:"11px"}}>{dt}</span>
+          <Badge color={T.green} style={{fontSize:"10px"}}>Active</Badge>
+        </div>
+      ))}
+    </Card>
+  </div>
+);
+
+const DashKYC = () => (
+  <div style={{maxWidth:"560px"}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px",marginBottom:"18px"}}>
+      <StatCard label="KYC Level" value="Level 1" change="Email verified" icon="🪪"/>
+      <StatCard label="Status" value="Pending" change="ID upload needed" icon="⏳" changeColor={T.gold}/>
+      <StatCard label="Monthly Limit" value="$10K/mo" change="Increases with KYC" icon="📈" changeColor={T.blue}/>
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+      <Card accent="rgba(15,217,138,.25)">
+        <div style={{display:"flex",gap:"13px",alignItems:"center"}}>
+          <div style={{width:44,height:44,borderRadius:"12px",background:"rgba(15,217,138,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>✅</div>
+          <div style={{flex:1}}><div style={{fontWeight:700,fontSize:"13px"}}>Level 1 — Email Verified</div><div style={{fontSize:"11px",color:T.green,marginTop:"2px"}}>Completed · john@nexusvault.io</div></div>
+          <Badge color={T.green}>Done</Badge>
+        </div>
+      </Card>
+      <Card accent="rgba(240,165,0,.25)">
+        <div style={{display:"flex",gap:"13px",alignItems:"center",marginBottom:"16px"}}>
+          <div style={{width:44,height:44,borderRadius:"12px",background:"rgba(240,165,0,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>🪪</div>
+          <div style={{flex:1}}><div style={{fontWeight:700,fontSize:"13px"}}>Level 2 — Identity Verification</div><div style={{fontSize:"11px",color:T.gold,marginTop:"2px"}}>Upload required · Unlocks $50K/month</div></div>
+          <Badge color={T.gold} style={{flexShrink:0}}>Pending</Badge>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"13px"}}>
+          {[["📄","Government ID","Passport or Driver's License"],["🤳","Selfie with ID","Face + ID clearly visible"]].map(([ic,title,sub])=>(
+            <div key={title} style={{border:"1px dashed rgba(240,165,0,.3)",borderRadius:"10px",padding:"16px",textAlign:"center",cursor:"pointer",background:"rgba(240,165,0,.025)"}}>
+              <div style={{fontSize:"22px",marginBottom:"6px"}}>{ic}</div>
+              <div style={{fontSize:"12px",fontWeight:700,marginBottom:"3px"}}>{title}</div>
+              <div style={{fontSize:"11px",color:T.t2,marginBottom:"9px"}}>{sub}</div>
+              <Btn variant="gold" size="sm">Choose File</Btn>
+            </div>
+          ))}
+        </div>
+        <Btn variant="gold" style={{width:"100%",padding:"12px",fontSize:"14px"}}>Submit for Review</Btn>
+      </Card>
+      <Card style={{opacity:.5}}>
+        <div style={{display:"flex",gap:"13px",alignItems:"center"}}>
+          <div style={{width:44,height:44,borderRadius:"12px",background:"rgba(255,255,255,.05)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>🏦</div>
+          <div style={{flex:1}}><div style={{fontWeight:700,fontSize:"13px",color:T.t2}}>Level 3 — Address Verification</div><div style={{fontSize:"11px",color:T.t3,marginTop:"2px"}}>Unlocks after Level 2 · Required for VIP Pro</div></div>
+          <Badge color={T.t3} style={{background:"rgba(255,255,255,.04)",border:`1px solid ${T.border}`}}>Locked</Badge>
+        </div>
+      </Card>
+    </div>
+  </div>
+);
+
+const DashNotif = () => {
+  const notifs = [
+    { t:"Weekly ROI Credited — Growth Plan",  b:"$18,750 added to your balance.",                          dt:"2 hours ago",  ic:"💰", c:T.green,  u:true },
+    { t:"BTC Deposit Confirmed On-Chain",      b:"$25,000 deposit — 3/3 confirmations. Growth Plan active.", dt:"Yesterday",    ic:"📥", c:T.blue,   u:true },
+    { t:"Referral Commission ×3",              b:"Sarah M. deposited $5,000. Commission: $500 credited.",    dt:"2 days ago",   ic:"🤝", c:T.purple, u:true },
+    { t:"Withdrawal Sent to Wallet",           b:"$5,000 BTC sent to bc1q...mdq. Confirmed on-chain.",       dt:"3 days ago",   ic:"📤", c:T.gold,   u:true },
+    { t:"Security Alert — New Login",          b:"New login: Chrome, Lagos NG. IP: 197.210.xx.xx",           dt:"4 days ago",   ic:"🔐", c:T.red,    u:true },
+    { t:"Starter Plan ROI Credited",           b:"$250 weekly ROI added to your balance.",                   dt:"5 days ago",   ic:"📈", c:T.green,  u:false },
+  ];
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"15px"}}>
+          Notifications <span style={{background:T.red,color:"#fff",fontSize:"10px",fontWeight:700,padding:"1px 6px",borderRadius:"10px",marginLeft:"5px"}}>5</span>
+        </div>
+        <Btn variant="ghost" size="sm">Mark all read</Btn>
+      </div>
+      {notifs.map((n,i)=>(
+        <div key={i} style={{display:"flex",gap:"12px",padding:"14px 16px",borderRadius:"10px",background:T.card,border:`1px solid ${n.u?"rgba(240,165,0,.22)":T.border}`,borderLeft:`3px solid ${n.u?T.gold:T.border}`,marginBottom:"9px",transition:"border-color .2s"}}>
+          <div style={{width:36,height:36,borderRadius:"10px",background:`${n.c}14`,border:`1px solid ${n.c}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"17px",flexShrink:0}}>{n.ic}</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:"13px",marginBottom:"2px"}}>
+              {n.t}{n.u&&<span style={{width:"6px",height:"6px",borderRadius:"50%",background:T.red,display:"inline-block",marginLeft:"7px",verticalAlign:"middle"}}/>}
+            </div>
+            <div style={{fontSize:"12px",color:T.t2,lineHeight:1.62,marginBottom:"3px"}}>{n.b}</div>
+            <div style={{fontSize:"10px",color:T.t3}}>{n.dt}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const DashEmailSettings = () => (
+  <div style={{maxWidth:"620px"}}>
+    <Card style={{marginBottom:"16px"}}>
+      <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"14px"}}>Email Notification Preferences</div>
+      <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+        {[
+          ["ROI Payout Alerts","Email + SMS — sent immediately when ROI is credited",true],
+          ["Deposit Confirmations","Email — on every on-chain confirmation",true],
+          ["Withdrawal Status Updates","Email + SMS — submitted, processing, sent stages",true],
+          ["Referral Commissions","Email — instant on each referral deposit",true],
+          ["Security Alerts","Email + SMS — new logins, 2FA changes, password resets",true],
+          ["KYC Status Updates","Email — when KYC is approved or requires changes",true],
+          ["Platform Announcements","Email — weekly digest of market updates",false],
+          ["Weekly Statement","Email — summary of all activity each week",true],
+        ].map(([l,d,on])=>(
+          <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 13px",border:`1px solid ${T.border}`,borderRadius:"10px",background:T.card}}>
+            <div style={{flex:1,marginRight:"14px"}}>
+              <div style={{fontSize:"13px",fontWeight:600,marginBottom:"2px"}}>{l}</div>
+              <div style={{fontSize:"11px",color:T.t2}}>{d}</div>
+            </div>
+            <div style={{width:"38px",height:"20px",borderRadius:"10px",background:on?T.green:"rgba(255,255,255,.1)",cursor:"pointer",position:"relative",flexShrink:0}}>
+              <div style={{width:"14px",height:"14px",borderRadius:"50%",background:"#fff",position:"absolute",right:on?"3px":"auto",left:on?"auto":"3px",top:"3px"}}/>
+            </div>
+          </div>
+        ))}
+      </div>
+      <Btn variant="gold" size="sm" style={{marginTop:"14px"}}>Save Preferences</Btn>
+    </Card>
+    <Card accent="rgba(79,158,255,.15)">
+      <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"12px"}}>Email Address</div>
+      <div style={{display:"flex",gap:"9px",alignItems:"center"}}>
+        <input defaultValue="john@nexusvault.io" style={{flex:1,background:"rgba(255,255,255,.04)",border:`1px solid ${T.border}`,borderRadius:"10px",color:T.t1,padding:"11px 14px",fontSize:"13px",fontFamily:"'Outfit',sans-serif",outline:"none"}}/>
+        <Btn variant="gold" size="sm">Update</Btn>
+      </div>
+      <div style={{fontSize:"11px",color:T.t2,marginTop:"7px"}}>All notifications from noreply@nexusvault.io · A verification email will be sent on update.</div>
+    </Card>
+  </div>
+);
+
+// ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
+const Admin = ({ setPage }) => {
+  const [activeView, setActiveView] = useState("overview");
+
+  const navItems = [
+    { id:"overview",   label:"Dashboard",      icon:"📊" },
+    { id:"users",      label:"Users",           icon:"👥" },
+    { id:"deposits",   label:"Deposits",        icon:"📥" },
+    { id:"withdrawals",label:"Withdrawals",     icon:"📤" },
+    { id:"kyc",        label:"KYC Queue",       icon:"🪪", badge:7 },
+    { id:"plans",      label:"Plans",           icon:"💼" },
+    { id:"emails",     label:"Email Templates", icon:"📧" },
+    { id:"analytics",  label:"Analytics",       icon:"📈" },
+  ];
+
+  const CHART_DEP  = [180000,220000,195000,312000,265000,340000];
+  const CHART_WIT  = [145000,175000,158000,248000,210000,275000];
+  const LABELS     = ["Jan","Feb","Mar","Apr","May","Jun"];
+  const maxAD = Math.max(...CHART_DEP), minAD = 0, rngAD = maxAD;
+
+  const renderView = () => {
+    switch(activeView) {
+      case "overview":    return <AdminOverview setActiveView={setActiveView} chartDep={CHART_DEP} chartWit={CHART_WIT} labels={LABELS} maxAD={maxAD} rngAD={rngAD}/>;
+      case "users":       return <AdminUsers/>;
+      case "deposits":    return <AdminDeposits/>;
+      case "withdrawals": return <AdminWithdrawals/>;
+      case "kyc":         return <AdminKYC/>;
+      case "plans":       return <AdminPlans/>;
+      case "emails":      return <AdminEmails/>;
+      case "analytics":   return <AdminAnalytics chartDep={CHART_DEP} chartWit={CHART_WIT} labels={LABELS} maxAD={maxAD} rngAD={rngAD}/>;
+      default:            return null;
+    }
+  };
+
+  return (
+    <div style={{display:"flex",minHeight:"100vh"}}>
+      <div style={{width:"228px",background:`linear-gradient(180deg,#0C0518,${T.bg})`,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",flexShrink:0}}>
+        <div style={{padding:"16px 18px 13px",borderBottom:`1px solid ${T.border}`,cursor:"pointer"}} onClick={()=>setPage("landing")}>
+          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+            <div style={{width:26,height:26,borderRadius:"8px",background:"linear-gradient(135deg,#A855F7,#7C3AED)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"13px",color:"#fff"}}>A</div>
+            <span style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"14px",fontWeight:900,color:T.t1}}>Admin <span style={{color:T.purple}}>Panel</span></span>
+          </div>
+        </div>
+        <div style={{flex:1,padding:"8px 0"}}>
+          {navItems.map(item=>(
+            <button key={item.id} onClick={()=>setActiveView(item.id)}
+              style={{display:"flex",alignItems:"center",gap:"10px",padding:"10px 18px",cursor:"pointer",fontSize:"13px",fontWeight:500,color:activeView===item.id?T.purple:T.t2,border:"none",background:activeView===item.id?"rgba(168,85,247,.08)":"transparent",width:"100%",textAlign:"left",fontFamily:"'Outfit',sans-serif",transition:"all .18s",borderLeft:`3px solid ${activeView===item.id?T.purple:"transparent"}`}}>
+              <span>{item.icon}</span>
+              <span style={{flex:1}}>{item.label}</span>
+              {item.badge && <span style={{background:T.red,color:"#fff",fontSize:"9px",fontWeight:700,padding:"1px 6px",borderRadius:"10px"}}>{item.badge}</span>}
+            </button>
+          ))}
+        </div>
+        <div style={{padding:"12px 18px",borderTop:`1px solid ${T.border}`}}>
+          <button onClick={()=>setPage("landing")} style={{display:"flex",alignItems:"center",gap:"8px",padding:"7px 0",cursor:"pointer",fontSize:"12px",color:T.t2,border:"none",background:"transparent",width:"100%",textAlign:"left",fontFamily:"inherit"}}>🌐 View Site</button>
+          <button onClick={()=>setPage("landing")} style={{display:"flex",alignItems:"center",gap:"8px",padding:"7px 0",cursor:"pointer",fontSize:"12px",color:T.red,border:"none",background:"transparent",width:"100%",textAlign:"left",fontFamily:"inherit"}}>🚪 Logout</button>
+        </div>
+      </div>
+
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+        <div style={{background:`linear-gradient(90deg,rgba(168,85,247,.06),transparent)`,borderBottom:`1px solid ${T.border}`,padding:"0 24px",height:"60px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+          <div>
+            <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"14px",color:T.purple}}>{navItems.find(i=>i.id===activeView)?.label||"Admin"}</div>
+            <div style={{fontSize:"11px",color:T.t2}}>Super Administrator · Full Access</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+            <Badge color={T.purple}>SUPER ADMIN</Badge>
+            <div style={{width:34,height:34,borderRadius:"50%",background:"linear-gradient(135deg,#A855F7,#7C3AED)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"12px",color:"#fff"}}>SA</div>
+          </div>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"24px",background:"rgba(4,4,12,1)"}}>{renderView()}</div>
+      </div>
+    </div>
+  );
+};
+
+const BarChart = ({ data1, data2, labels, color1=T.gold, color2=T.blue, label1="Deposits", label2="Withdrawals" }) => {
+  const max = Math.max(...data1,...data2);
+  return (
+    <div>
+      <div style={{display:"flex",gap:"14px",marginBottom:"14px",fontSize:"12px"}}>
+        <span style={{display:"flex",alignItems:"center",gap:"5px"}}><span style={{width:10,height:10,borderRadius:"2px",background:color1,display:"inline-block"}}/>{label1}</span>
+        <span style={{display:"flex",alignItems:"center",gap:"5px"}}><span style={{width:10,height:10,borderRadius:"2px",background:color2,display:"inline-block"}}/>{label2}</span>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-end",gap:"12px",height:"140px"}}>
+        {labels.map((l,i)=>(
+          <div key={l} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",height:"100%"}}>
+            <div style={{flex:1,width:"100%",display:"flex",alignItems:"flex-end",gap:"3px"}}>
+              <div style={{flex:1,background:`${color1}AA`,borderRadius:"4px 4px 0 0",height:`${Math.round((data1[i]/max)*100)}%`}}/>
+              <div style={{flex:1,background:`${color2}88`,borderRadius:"4px 4px 0 0",height:`${Math.round((data2[i]/max)*100)}%`}}/>
+            </div>
+            <div style={{fontSize:"10px",color:T.t3}}>{l}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const AdminOverview = ({ setActiveView, chartDep, chartWit, labels, maxAD, rngAD }) => (
+  <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:"13px",marginBottom:"18px"}}>
+      <StatCard label="Total Users"           value="3,247"   change="↑+124 this week" icon="👥" changeColor={T.purple}/>
+      <StatCard label="Platform AUM"          value="$2.14M"  change="Active investments" icon="💰"/>
+      <StatCard label="Pending Withdrawals"   value="$94,200" change="6 requests" icon="⏳" changeColor={T.gold}/>
+      <StatCard label="Pending KYC"           value="7"       change="For review" icon="🪪" changeColor={T.blue}/>
+      <StatCard label="Revenue MTD"           value="$214K"   change="Commissions" icon="📊" changeColor={T.red}/>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:"16px",marginBottom:"16px"}}>
+      <Card>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"14px"}}>Platform Volume — 6 Months</div>
+        <BarChart data1={chartDep} data2={chartWit} labels={labels}/>
+      </Card>
+      <Card>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"14px"}}>Quick Actions</div>
+        <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+          <Btn variant="gold" style={{width:"100%",padding:"10px",fontSize:"12px",justifyContent:"flex-start"}} onClick={()=>setActiveView("withdrawals")}>⏳ Review Withdrawals (6)</Btn>
+          <Btn variant="outline" style={{width:"100%",padding:"10px",fontSize:"12px",justifyContent:"flex-start"}} onClick={()=>setActiveView("kyc")}>🪪 KYC Queue (7)</Btn>
+          <Btn variant="outline" style={{width:"100%",padding:"10px",fontSize:"12px",justifyContent:"flex-start"}} onClick={()=>setActiveView("deposits")}>📥 Confirm Deposits</Btn>
+          <Btn variant="outline" style={{width:"100%",padding:"10px",fontSize:"12px",justifyContent:"flex-start"}} onClick={()=>setActiveView("emails")}>📧 Email Templates</Btn>
+        </div>
+        <div style={{marginTop:"13px",padding:"11px",background:"rgba(255,77,106,.05)",border:"1px solid rgba(255,77,106,.18)",borderRadius:"10px"}}>
+          <div style={{fontSize:"11px",fontWeight:700,color:T.red,marginBottom:"3px"}}>⚠ Attention Required</div>
+          <div style={{fontSize:"11px",color:T.t2}}>6 pending withdrawals · 7 KYC submissions</div>
+        </div>
+      </Card>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px"}}>
+      <Card>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"12px"}}>Recent Deposits</div>
+        {[["James C.","$5,000","BTC","Growth","Confirmed"],["Sarah M.","$100,000","ETH","VIP Pro","Confirmed"],["Ahmed H.","$5,000","USDT","Growth","Pending"],["Maria S.","$15,000","BNB","Elite","Confirmed"]].map(([u,a,c,p,s])=>(
+          <div key={u} style={{display:"flex",alignItems:"center",padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+            <div style={{flex:1.2}}><div style={{fontSize:"12px",fontWeight:600}}>{u}</div><div style={{fontSize:"10px",color:T.t3}}>{c} · {p}</div></div>
+            <span style={{color:T.green,fontWeight:700,fontSize:"12px"}}>{a}</span>
+            <span style={{fontSize:"10px",fontWeight:700,color:s==="Confirmed"?T.green:T.gold,background:`${s==="Confirmed"?T.green:T.gold}18`,padding:"2px 8px",borderRadius:"20px",marginLeft:"9px"}}>{s}</span>
+          </div>
+        ))}
+      </Card>
+      <Card>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"12px"}}>Pending Withdrawals</div>
+        {[["Sarah M.","$50,000","ETH"],["Ahmed H.","$1,200","BNB"],["New User","$800","USDT"]].map(([u,a,c])=>(
+          <div key={u} style={{display:"flex",alignItems:"center",padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+            <div style={{flex:1.2}}><div style={{fontSize:"12px",fontWeight:600}}>{u}</div><div style={{fontSize:"10px",color:T.t3}}>{c} withdrawal</div></div>
+            <span style={{color:T.red,fontWeight:700,fontSize:"12px"}}>-{a}</span>
+            <div style={{display:"flex",gap:"4px",marginLeft:"9px"}}>
+              <Btn variant="green" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>✓ Pay</Btn>
+              <Btn variant="danger" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>✗</Btn>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  </div>
+);
+
+const AdminUsers = () => {
+  const users = [
+    {n:"James Carter",  e:"james@email.com", b:"$45,230",  i:"$30,000",  s:"Active",    k:"Verified"},
+    {n:"Sarah Mitchell",e:"sarah@email.com", b:"$128,900", i:"$100,000", s:"Active",    k:"Verified"},
+    {n:"Ahmed Hassan",  e:"ahmed@email.com", b:"$8,750",   i:"$5,000",   s:"Active",    k:"Pending"},
+    {n:"Yuki Tanaka",   e:"yuki@email.com",  b:"$0",       i:"$0",       s:"Suspended", k:"Rejected"},
+    {n:"Maria Santos",  e:"maria@email.com", b:"$22,100",  i:"$15,000",  s:"Active",    k:"Verified"},
+  ];
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"15px"}}>All Users</div>
+        <div style={{display:"flex",gap:"8px"}}>
+          <input type="text" placeholder="Search users..." style={{background:"rgba(255,255,255,.04)",border:`1px solid ${T.border}`,borderRadius:"9px",color:T.t1,padding:"8px 13px",fontSize:"13px",fontFamily:"'Outfit',sans-serif",width:"180px",outline:"none"}}/>
+          <Btn variant="gold" size="sm">Export CSV</Btn>
+        </div>
+      </div>
+      <HistoryTable
+        columns={["User","Balance","Invested","Status","KYC","Actions"]}
+        colWidths={[1.6,1,1,.7,.7,1]}
+        rows={users.map(x=>{
+          const sc=x.s==="Active"?T.green:T.red;
+          const kc=x.k==="Verified"?T.green:x.k==="Pending"?T.gold:T.red;
+          return [
+            <div key="u" style={{flex:1.6,display:"flex",gap:"8px",alignItems:"center"}}>
+              <div style={{width:30,height:30,borderRadius:"50%",background:`linear-gradient(135deg,${T.gold},${T.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"10px",color:"#000",flexShrink:0}}>{x.n.split(" ").map(w=>w[0]).join("")}</div>
+              <div><div style={{fontSize:"12px",fontWeight:600}}>{x.n}</div><div style={{fontSize:"10px",color:T.t3}}>{x.e}</div></div>
+            </div>,
+            <div key="b" style={{flex:1,color:T.green,fontWeight:700,fontSize:"12px"}}>{x.b}</div>,
+            <div key="i" style={{flex:1,color:T.t2,fontSize:"12px"}}>{x.i}</div>,
+            <div key="s" style={{flex:.7}}><span style={{fontSize:"10px",fontWeight:700,color:sc,background:`${sc}18`,padding:"2px 7px",borderRadius:"20px"}}>{x.s}</span></div>,
+            <div key="k" style={{flex:.7}}><span style={{fontSize:"10px",fontWeight:700,color:kc,background:`${kc}18`,padding:"2px 7px",borderRadius:"20px"}}>{x.k}</span></div>,
+            <div key="a" style={{flex:1,display:"flex",gap:"4px"}}>
+              <Btn variant="outline" size="sm" style={{fontSize:"10px",padding:"4px 8px",borderColor:"rgba(79,158,255,.35)",color:T.blue}}>Edit</Btn>
+              <Btn variant="danger" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>Ban</Btn>
+            </div>,
+          ];
+        })}
+      />
+    </div>
+  );
+};
+
+const AdminDeposits = () => {
+  const data = [
+    {id:"DEP001",u:"James C.",  a:"$5,000",   c:"BTC",  p:"Growth",  s:"Confirmed"},
+    {id:"DEP002",u:"Sarah M.",  a:"$100,000",  c:"ETH",  p:"VIP Pro", s:"Confirmed"},
+    {id:"DEP003",u:"Ahmed H.",  a:"$5,000",    c:"USDT", p:"Growth",  s:"Pending"},
+    {id:"DEP004",u:"Maria S.",  a:"$15,000",   c:"BNB",  p:"Elite",   s:"Confirmed"},
+  ];
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"15px"}}>Deposits</div>
+        <Badge color={T.gold}>{data.filter(d=>d.s==="Pending").length} Pending</Badge>
+      </div>
+      <HistoryTable
+        columns={["ID","User","Amount","Coin","Plan","Status","Action"]}
+        colWidths={[.8,1,1,.7,.8,.8,.8]}
+        rows={data.map(r=>{
+          const c=r.s==="Confirmed"?T.green:T.gold;
+          return [
+            <div key="id" style={{flex:.8,fontSize:"10px",color:T.t3}}>{r.id}</div>,
+            <div key="u" style={{flex:1,fontWeight:600,fontSize:"12px"}}>{r.u}</div>,
+            <div key="a" style={{flex:1,fontWeight:700,color:T.green,fontSize:"12px"}}>{r.a}</div>,
+            <div key="c" style={{flex:.7}}><Badge color={T.gold} style={{fontSize:"9px"}}>{r.c}</Badge></div>,
+            <div key="p" style={{flex:.8,color:T.t2,fontSize:"12px"}}>{r.p}</div>,
+            <div key="s" style={{flex:.8}}><span style={{fontSize:"10px",fontWeight:700,color:c,background:`${c}18`,padding:"2px 8px",borderRadius:"20px"}}>{r.s}</span></div>,
+            <div key="action" style={{flex:.8}}>{r.s==="Pending"?<Btn variant="green" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>✓ Approve</Btn>:<span style={{fontSize:"11px",color:T.t3}}>—</span>}</div>,
+          ];
+        })}
+      />
+    </div>
+  );
+};
+
+const AdminWithdrawals = () => {
+  const data = [
+    {id:"WIT001",u:"James C.", a:"$2,500",  c:"BTC",  s:"Approved"},
+    {id:"WIT002",u:"Sarah M.", a:"$50,000", c:"ETH",  s:"Pending"},
+    {id:"WIT003",u:"Maria S.", a:"$8,000",  c:"USDT", s:"Approved"},
+    {id:"WIT004",u:"Ahmed H.", a:"$1,200",  c:"BNB",  s:"Pending"},
+    {id:"WIT005",u:"Yuki T.",  a:"$500",    c:"BTC",  s:"Rejected"},
+  ];
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"15px"}}>Withdrawals</div>
+        <Badge color={T.red}>{data.filter(d=>d.s==="Pending").length} Awaiting Approval</Badge>
+      </div>
+      <HistoryTable
+        columns={["ID","User","Amount","Coin","Status","Actions"]}
+        colWidths={[.8,1,1,.7,.8,1.1]}
+        rows={data.map(r=>{
+          const c=r.s==="Approved"?T.green:r.s==="Pending"?T.gold:T.red;
+          return [
+            <div key="id" style={{flex:.8,fontSize:"10px",color:T.t3}}>{r.id}</div>,
+            <div key="u" style={{flex:1,fontWeight:600,fontSize:"12px"}}>{r.u}</div>,
+            <div key="a" style={{flex:1,fontWeight:700,color:T.red,fontSize:"12px"}}>-{r.a}</div>,
+            <div key="c" style={{flex:.7}}><Badge color={T.blue} style={{fontSize:"9px"}}>{r.c}</Badge></div>,
+            <div key="s" style={{flex:.8}}><span style={{fontSize:"10px",fontWeight:700,color:c,background:`${c}18`,padding:"2px 8px",borderRadius:"20px"}}>{r.s}</span></div>,
+            <div key="action" style={{flex:1.1,display:"flex",gap:"4px"}}>{r.s==="Pending"?<><Btn variant="green" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>✓ Pay</Btn><Btn variant="danger" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>✗</Btn></>:<span style={{fontSize:"11px",color:T.t3}}>—</span>}</div>,
+          ];
+        })}
+      />
+    </div>
+  );
+};
+
+const AdminKYC = () => {
+  const data = [
+    {n:"Ahmed Hassan", e:"ahmed@email.com", l:"Level 2", d:"Apr 11", s:"Pending"},
+    {n:"Sofia Reyes",  e:"sofia@email.com",  l:"Level 2", d:"Apr 10", s:"Pending"},
+    {n:"Liu Wei",      e:"liu@email.com",    l:"Level 3", d:"Apr 09", s:"Pending"},
+    {n:"Aisha M.",     e:"aisha@email.com",  l:"Level 2", d:"Apr 08", s:"Approved"},
+  ];
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+        <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"15px"}}>KYC Review Queue</div>
+        <Badge color={T.gold}>{data.filter(d=>d.s==="Pending").length} Pending</Badge>
+      </div>
+      <HistoryTable
+        columns={["User","Level","Submitted","Status","Actions"]}
+        colWidths={[1.5,.8,.8,.8,1.4]}
+        rows={data.map(r=>{
+          const sc=r.s==="Approved"?T.green:T.gold;
+          return [
+            <div key="u" style={{flex:1.5}}><div style={{fontSize:"12px",fontWeight:600}}>{r.n}</div><div style={{fontSize:"10px",color:T.t3}}>{r.e}</div></div>,
+            <div key="l" style={{flex:.8}}><Badge color={T.blue} style={{fontSize:"10px"}}>{r.l}</Badge></div>,
+            <div key="d" style={{flex:.8,color:T.t2,fontSize:"12px"}}>{r.d}</div>,
+            <div key="s" style={{flex:.8}}><span style={{fontSize:"10px",fontWeight:700,color:sc,background:`${sc}18`,padding:"2px 8px",borderRadius:"20px"}}>{r.s}</span></div>,
+            <div key="a" style={{flex:1.4,display:"flex",gap:"4px"}}>{r.s==="Pending"?<><Btn variant="green" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>✓ Approve</Btn><Btn variant="danger" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>✗ Reject</Btn></>:<Btn variant="ghost" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>View Docs</Btn>}</div>,
+          ];
+        })}
+      />
+    </div>
+  );
+};
+
+const AdminPlans = () => (
+  <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+      <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"15px"}}>Investment Plans</div>
+      <Btn variant="gold" size="sm">+ Add Plan</Btn>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:"14px"}}>
+      {[{n:"Starter",roi:"50%",min:"$500",max:"$4,999",c:T.blue,users:1240,vol:"$1.2M"},
+        {n:"Growth", roi:"75%",min:"$5,000",max:"$24,999",c:T.gold,users:892,vol:"$8.9M"},
+        {n:"Elite",  roi:"100%",min:"$25,000",max:"$99,999",c:T.purple,users:134,vol:"$4.7M"},
+        {n:"VIP Pro",roi:"150%",min:"$100,000",max:"Unlimited",c:T.red,users:22,vol:"$6.4M"}].map(p=>(
+        <Card key={p.n} accent={`${p.c}22`}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"11px"}}>
+            <div><div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"32px",fontWeight:900,color:p.c}}>{p.roi}</div><div style={{fontWeight:700,fontSize:"13px"}}>{p.n}</div></div>
+            <div style={{display:"flex",gap:"5px"}}>
+              <Btn variant="outline" size="sm" style={{fontSize:"10px",padding:"4px 8px",borderColor:`${T.blue}44`,color:T.blue}}>Edit</Btn>
+              <Btn variant="green" size="sm" style={{fontSize:"10px",padding:"4px 8px"}}>Active</Btn>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"7px",fontSize:"12px"}}>
+            <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:T.t2}}>Range</span><strong>{p.min} – {p.max}</strong></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:T.t2}}>Active Users</span><strong>{p.users.toLocaleString()}</strong></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:T.t2}}>Total Volume</span><strong style={{color:T.green}}>{p.vol}</strong></div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  </div>
+);
+
+const AdminEmails = () => (
+  <div style={{maxWidth:"720px"}}>
+    <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"15px",marginBottom:"16px"}}>Email Notification Templates</div>
+    <div style={{display:"flex",flexDirection:"column",gap:"11px"}}>
+      {EMAIL_TEMPLATES.map(et=>(
+        <Card key={et.name} accent="rgba(15,217,138,.14)">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:"13px",marginBottom:"3px"}}>{et.name}</div>
+              <div style={{fontSize:"11px",color:T.t2,lineHeight:1.65}}>Trigger: {et.trigger}</div>
+            </div>
+            <div style={{display:"flex",gap:"6px",marginLeft:"14px",flexShrink:0}}>
+              <Badge color={T.green} style={{fontSize:"10px"}}>{et.status}</Badge>
+              <Btn variant="ghost" size="sm" style={{fontSize:"10px",padding:"4px 9px"}}>Edit</Btn>
+              <Btn variant="outline" size="sm" style={{fontSize:"10px",padding:"4px 9px",borderColor:"rgba(240,165,0,.3)",color:T.gold}}>Preview</Btn>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  </div>
+);
+
+const AdminAnalytics = ({ chartDep, chartWit, labels, maxAD, rngAD }) => (
+  <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",gap:"13px",marginBottom:"18px"}}>
+      <StatCard label="New Users (7d)" value="124"    change="↑+18%" icon="👥" changeColor={T.green}/>
+      <StatCard label="Deposits (7d)"  value="$180K"  change="↑+12%" icon="📥" changeColor={T.gold}/>
+      <StatCard label="Withdrawals (7d)" value="$94K" change="↓-5%"  icon="📤" changeColor={T.red}/>
+      <StatCard label="Avg Investment" value="$6,590"  change="Per user" icon="📊" changeColor={T.blue}/>
+    </div>
+    <Card>
+      <div style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:800,fontSize:"14px",marginBottom:"14px"}}>6-Month Platform Volume</div>
+      <BarChart data1={chartDep} data2={chartWit} labels={labels}/>
+    </Card>
+  </div>
+);
+
+// ─── TECH DOCS PAGE ───────────────────────────────────────────────────────────
+const DocsPage = ({ setPage }) => {
+  const [tab, setTab] = useState("folder");
+
+  const CodeBlock = ({ children }) => (
+    <pre style={{background:"rgba(0,0,0,.6)",border:`1px solid rgba(255,255,255,.08)`,borderRadius:"10px",padding:"16px",fontFamily:"monospace",fontSize:"11px",color:"#A8B4C8",lineHeight:1.7,overflowX:"auto",whiteSpace:"pre"}}>
+      {children}
+    </pre>
+  );
+
+  const renderTab = () => {
+    switch(tab) {
+      case "folder": return (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px"}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:"13px",color:T.gold,marginBottom:"11px"}}>📂 Frontend (React + Vite + Tailwind)</div>
+            <CodeBlock>{`nexusvault-frontend/
+├── src/
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   └── Footer.jsx
+│   │   ├── ui/
+│   │   │   ├── StatCard.jsx
+│   │   │   ├── PriceChart.jsx
+│   │   │   ├── LiveChat.jsx
+│   │   │   ├── SSLBadge.jsx
+│   │   │   └── StatCounter.jsx
+│   │   └── dashboard/
+│   │       ├── Overview.jsx
+│   │       ├── WalletManager.jsx
+│   │       ├── DepositPanel.jsx
+│   │       ├── WithdrawPanel.jsx
+│   │       ├── Notifications.jsx
+│   │       ├── KYCPanel.jsx
+│   │       ├── Referrals.jsx
+│   │       └── EmailSettings.jsx
+│   ├── pages/
+│   │   ├── Landing.jsx
+│   │   ├── Login.jsx
+│   │   ├── Register.jsx
+│   │   ├── Dashboard.jsx
+│   │   └── AdminPanel.jsx
+│   ├── hooks/
+│   │   ├── useAuth.js
+│   │   ├── usePrices.js
+│   │   └── useWebSocket.js
+│   ├── store/
+│   │   ├── authSlice.js
+│   │   ├── walletSlice.js
+│   │   └── notifSlice.js
+│   ├── i18n/
+│   │   ├── en.json
+│   │   ├── fr.json
+│   │   ├── es.json
+│   │   └── ar.json
+│   └── utils/
+│       ├── api.js
+│       ├── formatters.js
+│       └── validators.js
+├── tailwind.config.js
+├── vite.config.js
+└── package.json`}</CodeBlock>
+          </div>
+          <div>
+            <div style={{fontWeight:700,fontSize:"13px",color:T.blue,marginBottom:"11px"}}>📂 Backend (Node.js + Express)</div>
+            <CodeBlock>{`nexusvault-backend/
+├── src/
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── userController.js
+│   │   ├── depositController.js
+│   │   ├── withdrawController.js
+│   │   ├── investController.js
+│   │   ├── referralController.js
+│   │   ├── kycController.js
+│   │   └── adminController.js
+│   ├── models/
+│   │   ├── User.js
+│   │   ├── Deposit.js
+│   │   ├── Withdrawal.js
+│   │   ├── Investment.js
+│   │   └── Referral.js
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── users.js
+│   │   ├── deposits.js
+│   │   ├── withdrawals.js
+│   │   ├── investments.js
+│   │   ├── referrals.js
+│   │   ├── kyc.js
+│   │   └── admin.js
+│   ├── middleware/
+│   │   ├── auth.js      (JWT verify)
+│   │   ├── adminAuth.js
+│   │   └── rateLimiter.js
+│   ├── services/
+│   │   ├── emailService.js
+│   │   ├── cryptoService.js
+│   │   ├── roiService.js
+│   │   └── kycService.js
+│   └── jobs/
+│       ├── roiPayoutJob.js  (cron)
+│       ├── depositScanJob.js
+│       └── emailDigestJob.js
+└── package.json`}</CodeBlock>
+          </div>
+        </div>
+      );
+      case "schema": return (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px"}}>
+          {[
+            { name:"Users",c:T.gold, fields:[["_id","ObjectId"],["email","String (unique)"],["passwordHash","String"],["name","String"],["balance","Number (USD)"],["kycLevel","Number 0-3"],["referralCode","String"],["referredBy","ObjectId"],["language","String (en/fr...)"],["emailNotifs","Object"],["twoFAEnabled","Boolean"],["createdAt","Date"]] },
+            { name:"Deposits",c:T.green, fields:[["_id","ObjectId"],["userId","ObjectId (ref)"],["coin","BTC|ETH|USDT|BNB"],["amountUSD","Number"],["txHash","String"],["planId","ObjectId (ref)"],["status","pending|confirmed|failed"],["emailSent","Boolean"],["createdAt","Date"]] },
+            { name:"Withdrawals",c:T.red, fields:[["_id","ObjectId"],["userId","ObjectId (ref)"],["coin","String"],["amountUSD","Number"],["toWallet","String"],["fee","Number"],["status","pending|approved|sent|failed"],["txHash","String"],["emailsSent","Array"],["requestedAt","Date"],["processedAt","Date"]] },
+            { name:"Investments",c:T.blue, fields:[["_id","ObjectId"],["userId","ObjectId (ref)"],["planId","ObjectId (ref)"],["principal","Number"],["weeklyROI","Number"],["totalEarned","Number"],["status","active|completed"],["nextPayoutDate","Date"],["payoutHistory","Array"],["startedAt","Date"]] },
+            { name:"Plans",c:T.purple, fields:[["_id","ObjectId"],["name","String"],["minDeposit","Number"],["maxDeposit","Number"],["weeklyROI","Number"],["referralCommission","Number"],["isActive","Boolean"],["investorCount","Number"],["totalVolume","Number"]] },
+            { name:"Referrals",c:T.cyan, fields:[["_id","ObjectId"],["referrerId","ObjectId"],["referredId","ObjectId"],["depositId","ObjectId"],["commission","Number"],["status","pending|credited"],["createdAt","Date"]] },
+          ].map(s=>(
+            <Card key={s.name} accent={`${s.c}22`}>
+              <div style={{fontWeight:700,fontSize:"13px",color:s.c,marginBottom:"11px"}}>{s.name} Collection</div>
+              {s.fields.map(([f,t])=>(
+                <div key={f} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 12px",borderBottom:"1px solid rgba(255,255,255,.04)",fontSize:"12px"}}>
+                  <span style={{fontWeight:600,color:T.t1,minWidth:"120px",flexShrink:0}}>{f}</span>
+                  <span style={{background:"rgba(79,158,255,.1)",color:T.blue,border:"1px solid rgba(79,158,255,.22)",borderRadius:"6px",padding:"1px 8px",fontSize:"10px",fontWeight:700,whiteSpace:"nowrap"}}>{t}</span>
+                </div>
+              ))}
+            </Card>
+          ))}
+        </div>
+      );
+      case "api": return (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px"}}>
+          {[
+            { group:"Authentication", eps:[{m:"POST",u:"/api/auth/register",d:"Register + send welcome email"},{m:"POST",u:"/api/auth/login",d:"Login + return JWT"},{m:"POST",u:"/api/auth/forgot-password",d:"Send reset email"},{m:"POST",u:"/api/auth/2fa/verify",d:"Verify 2FA code"}] },
+            { group:"User & Wallet",   eps:[{m:"GET", u:"/api/users/me",     d:"Get current user profile"},{m:"PUT",u:"/api/users/me",d:"Update profile & language"},{m:"GET",u:"/api/users/wallets",d:"Get wallet addresses"},{m:"GET",u:"/api/users/balance",d:"Real-time balance"}] },
+            { group:"Deposits",        eps:[{m:"POST",u:"/api/deposits",      d:"Submit deposit + trigger email"},{m:"GET",u:"/api/deposits",d:"Get deposit history"},{m:"POST",u:"/api/deposits/confirm",d:"Manual deposit confirm"}] },
+            { group:"Withdrawals",     eps:[{m:"POST",u:"/api/withdrawals",   d:"Request withdrawal"},{m:"GET",u:"/api/withdrawals",d:"Get withdrawal history"},{m:"PUT",u:"/api/withdrawals/:id/cancel",d:"Cancel pending"}] },
+            { group:"Investments",     eps:[{m:"GET", u:"/api/investments/plans",d:"Get all active plans"},{m:"POST",u:"/api/investments",d:"Activate investment plan"},{m:"GET",u:"/api/investments/roi",d:"Get ROI history"}] },
+            { group:"Admin",           eps:[{m:"GET",u:"/api/admin/users",    d:"Get all users + filters"},{m:"PUT",u:"/api/admin/deposits/:id",d:"Approve/reject deposit"},{m:"PUT",u:"/api/admin/withdrawals/:id",d:"Process withdrawal"},{m:"GET",u:"/api/admin/analytics",d:"Platform analytics"}] },
+          ].map(g=>(
+            <Card key={g.group}>
+              <div style={{fontWeight:700,fontSize:"11px",color:T.gold,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"11px"}}>{g.group}</div>
+              {g.eps.map(ep=>{
+                const mc = {GET:T.green,POST:T.gold,PUT:T.blue,DELETE:T.red};
+                return (
+                  <div key={ep.u} style={{borderRadius:"8px",border:`1px solid ${T.border}`,marginBottom:"8px",overflow:"hidden",background:T.card}}>
+                    <div style={{display:"flex",alignItems:"center",gap:"9px",padding:"10px 13px"}}>
+                      <span style={{padding:"3px 9px",borderRadius:"6px",fontSize:"10px",fontWeight:700,fontFamily:"monospace",background:`${mc[ep.m]||T.gold}14`,color:mc[ep.m]||T.gold,border:`1px solid ${mc[ep.m]||T.gold}28`,flexShrink:0}}>{ep.m}</span>
+                      <code style={{fontSize:"11px",color:T.t1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ep.u}</code>
+                    </div>
+                    <div style={{padding:"0 13px 10px",fontSize:"11px",color:T.t3}}>{ep.d}</div>
+                  </div>
+                );
+              })}
+            </Card>
+          ))}
+        </div>
+      );
+      case "stack": return (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:"14px"}}>
+          {[
+            { cat:"Frontend",  c:T.blue,   items:[["React 18","UI framework + hooks"],["Vite","Build tool (fast HMR)"],["Tailwind CSS","Utility-first CSS"],["Zustand","State management"],["React Router v6","Client-side routing"],["i18next","Multi-language (10 langs)"],["Chart.js","Data visualization"],["Axios","HTTP client"]] },
+            { cat:"Backend",   c:T.gold,   items:[["Node.js 20 LTS","Runtime environment"],["Express.js","REST API framework"],["JWT","Authentication tokens"],["bcryptjs","Password hashing"],["node-cron","ROI payout scheduler"],["Socket.io","Real-time notifications"],["Multer","KYC file uploads"],["Morgan","HTTP request logging"]] },
+            { cat:"Database",  c:T.green,  items:[["MongoDB Atlas","Primary cloud database"],["Mongoose ODM","Schema + validation"],["Redis","Session + rate limit cache"],["Atlas Search","Full-text search"],["Aggregation Pipeline","Analytics queries"]] },
+            { cat:"Email",     c:T.purple, items:[["Nodemailer","Email sending service"],["SendGrid","SMTP provider"],["Handlebars","Email templating"],["DKIM Signing","Email authentication"],["Bounce Handling","Invalid email detection"]] },
+            { cat:"Security",  c:T.red,    items:[["Helmet.js","Security HTTP headers"],["express-rate-limit","API rate limiting"],["SSL/TLS 1.3","End-to-end encryption"],["speakeasy","2FA/TOTP support"],["AES-256","Data encryption at rest"],["CORS","Cross-origin config"]] },
+            { cat:"DevOps",    c:T.cyan,   items:[["Docker + Compose","Container orchestration"],["AWS / DigitalOcean","Cloud hosting"],["Nginx","Reverse proxy + SSL"],["PM2","Process manager"],["GitHub Actions","CI/CD pipeline"],["Cloudflare","CDN + DDoS protection"]] },
+          ].map(s=>(
+            <Card key={s.cat} accent={`${s.c}22`}>
+              <div style={{fontWeight:700,fontSize:"11px",color:s.c,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"11px"}}>{s.cat}</div>
+              <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+                {s.items.map(([n,d])=>(
+                  <div key={n} style={{display:"flex",gap:"8px",alignItems:"flex-start"}}>
+                    <div style={{fontWeight:700,fontSize:"12px",minWidth:"120px",flexShrink:0}}>{n}</div>
+                    <div style={{fontSize:"11px",color:T.t2}}>{d}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
+      );
+      case "email": return (
+        <div style={{maxWidth:"760px"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px",marginBottom:"18px"}}>
+            <Card>
+              <div style={{fontWeight:700,fontSize:"13px",color:T.gold,marginBottom:"12px"}}>Email Service Architecture</div>
+              <CodeBlock>{`// emailService.js
+const nodemailer = require('nodemailer');
+const hbs = require('handlebars');
+
+const transporter = nodemailer.createTransport({
+  host: 'smtp.sendgrid.net',
+  port: 587,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
+
+async function sendDepositConfirm(user, dep) {
+  const lang = user.language || 'en';
+  const tmpl = getTemplate(lang, 'deposit-confirmed');
+  const html = hbs.compile(tmpl)({
+    name: user.name,
+    amount: dep.amountUSD,
+    coin: dep.coin,
+    txHash: dep.txHash,
+    plan: dep.planName,
+  });
+  await transporter.sendMail({
+    from: 'NexusVault <noreply@nexusvault.io>',
+    to: user.email,
+    subject: \`✅ Deposit Confirmed — $\${dep.amountUSD}\`,
+    html
+  });
+}`}</CodeBlock>
+            </Card>
+            <Card>
+              <div style={{fontWeight:700,fontSize:"13px",color:T.purple,marginBottom:"12px"}}>Multi-Language Email Flow</div>
+              <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+                {[
+                  ["1","User Registers",`language saved: user.language = 'fr'`,T.green],
+                  ["2","Event Triggered",`Deposit confirmed → emailService.send(user, 'deposit-confirmed', data)`,T.blue],
+                  ["3","Template Selected",`Load: templates/fr/deposit-confirmed.hbs with user data`,T.gold],
+                  ["4","Email Sent",`Rendered HTML via SendGrid with DKIM signing. Bounce tracked.`,T.purple],
+                ].map(([n,t,d,c])=>(
+                  <div key={n} style={{padding:"11px 12px",border:`1px solid ${c}18`,borderRadius:"9px",background:`${c}06`}}>
+                    <div style={{fontWeight:700,fontSize:"12px",marginBottom:"4px",color:c}}>Step {n}: {t}</div>
+                    <code style={{fontSize:"11px",color:T.t2}}>{d}</code>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+          <Card>
+            <div style={{fontWeight:700,fontSize:"13px",color:T.green,marginBottom:"12px"}}>Email Templates ({LANGS.length} Languages)</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:"9px"}}>
+              {EMAIL_TEMPLATES.map(et=>(
+                <div key={et.name} style={{padding:"10px 12px",border:`1px solid ${T.border}`,borderRadius:"9px",background:T.card}}>
+                  <div style={{fontWeight:700,fontSize:"12px",marginBottom:"3px"}}>{et.name}</div>
+                  <div style={{fontSize:"10px",color:T.t3}}>{et.trigger}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      );
+      default: return null;
+    }
+  };
+
+  return (
+    <div style={{background:T.bg,minHeight:"100vh"}}>
+      <div style={{background:T.bg2,borderBottom:`1px solid ${T.border}`,padding:"0 22px"}}>
+        <div style={{maxWidth:1280,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:"60px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+            <div onClick={()=>setPage("landing")} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:"8px"}}>
+              <div style={{width:28,height:28,borderRadius:"8px",background:`linear-gradient(135deg,${T.gold},${T.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cabinet Grotesk',sans-serif",fontWeight:900,fontSize:"14px",color:"#000"}}>N</div>
+              <span style={{fontFamily:"'Cabinet Grotesk',sans-serif",fontSize:"16px",fontWeight:900,color:T.t1}}>NexusVault</span>
+            </div>
+            <span style={{color:T.t3}}>›</span>
+            <span style={{fontSize:"14px",fontWeight:600,color:T.gold}}>Technical Documentation</span>
+          </div>
+          <div style={{display:"flex",gap:"8px"}}>
+            <Btn variant="gold" size="sm" onClick={()=>setPage("dashboard")}>Dashboard</Btn>
+            <Btn variant="outline" size="sm" onClick={()=>setPage("landing")}>← Home</Btn>
+          </div>
+        </div>
+      </div>
+      <div style={{maxWidth:1280,margin:"0 auto",padding:"28px 22px"}}>
+        <div style={{display:"flex",gap:"2px",background:"rgba(255,255,255,.04)",borderRadius:"10px",padding:"4px",marginBottom:"24px"}}>
+          {[["folder","📁 Folder Structure"],["schema","🗄️ DB Schema"],["api","⚡ API Routes"],["stack","🛠️ Tech Stack"],["email","📧 Email System"]].map(([id,label])=>(
+            <button key={id} onClick={()=>setTab(id)}
+              style={{flex:1,padding:"9px",fontSize:"12px",fontWeight:600,border:"none",borderRadius:"8px",cursor:"pointer",fontFamily:"'Outfit',sans-serif",transition:"all .2s",color:tab===id?T.gold:T.t2,background:tab===id?"rgba(240,165,0,.12)":"transparent"}}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {renderTab()}
+      </div>
+    </div>
+  );
+};
+
+// ─── ROOT APP ─────────────────────────────────────────────────────────────────
+function App() {
+  const [page, setPage] = useState("landing");
+  const [currentLang, setCurrentLang] = useState(LANGS[0]);
+
+  useEffect(() => {
+    const styleEl = document.createElement("style");
+    styleEl.textContent = CSS;
+    document.head.appendChild(styleEl);
+    return () => document.head.removeChild(styleEl);
+  }, []);
+
+  const navTo = useCallback((p) => {
+    setPage(p);
+    window.scrollTo(0, 0);
+  }, []);
+
+  if(page === "dashboard") return <Dashboard setPage={navTo}/>;
+  if(page === "admin")     return <Admin setPage={navTo}/>;
+  if(page === "chat")      return <ChatPage setPage={navTo}/>;
+  if(page === "login")     return <AuthPage mode="login" setPage={navTo}/>;
+  if(page === "register")  return <AuthPage mode="register" setPage={navTo}/>;
+  if(page === "docs")      return <DocsPage setPage={navTo}/>;
+
+  return (
+    <div style={{minHeight:"100vh",background:T.bg}}>
+      <Navbar page={page} setPage={navTo}/>
+      <LandingPage setPage={navTo} currentLang={currentLang} setCurrentLang={setCurrentLang}/>
+    </div>
+  );
+}
+
+// Mount the app
+const rootEl = document.getElementById('root');
+ReactDOM.createRoot(rootEl).render(React.createElement(App));
+</script>
+</body>
+</html>
